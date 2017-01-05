@@ -13,71 +13,90 @@
 #
 #   You should have received a copy of the GNU Affero General Public License
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>
-import tkinter as tk
 from tkinter import filedialog, messagebox
+import tkinter as tk
+import sys
 
 
+# TODO: Auto-step pause, finish, etc.
+# TODO: Time Taken
 # TODO: Display filename loaded
-# TODO: Visual+interactive debugger
 # TODO: Separate app into separate frames and organize
 # TODO: Display output
+# TODO: Init all variables in __init__???
+# TODO: Show position on input string
 class BrainfuckApp(tk.Frame):
     def __init__(self, master=None):
         super().__init__(master)
         self.interpreter = BrainfuckInterpreter()
+        self.interpreter_states = []
         self.tape_cell = None
+        self.pause = False
+        self.current_after = None
 
         self.master.wm_title("Brainfuck Interactive Debugger")
         self.master.columnconfigure(0, weight=1)
         self.master.rowconfigure(0, weight=1)
+
         self.create_widgets()
+        self.update_gui_bf_state()
 
-
+    # TODO: organize all names, to _btn or whatever...so you don't mix up different shit...
     def create_widgets(self):
         self.grid(sticky=tk.E+tk.W+tk.N+tk.S)
         self.rowconfigure(1, weight=4)
         self.columnconfigure(0, weight=1)
-
         # Parent frames
         self.button_frame = tk.LabelFrame(self, text="")
-        self.button_frame.grid(row=0, column=0, sticky=tk.W)
+        self.button_frame.grid(row=0, column=0, padx=10, pady=10, sticky=tk.W)
         self.text_frame = tk.LabelFrame(self, text="Input / Source")
-        self.text_frame.grid(row=1, column=0, columnspan=4, sticky=tk.E+tk.W+tk.S+tk.N)
+        self.text_frame.grid(row=1, column=0, columnspan=4, padx=10, sticky=tk.E+tk.W+tk.S+tk.N)
         self.text_frame.rowconfigure(0, weight=1)
         self.text_frame.columnconfigure(0, weight=1)
         self.text_frame.columnconfigure(1, weight=1)
         self.output_frame = tk.LabelFrame(self, text="Output")
-        self.output_frame.grid(row=2, column=0, sticky=tk.W)
-        self.debug_frame = tk.LabelFrame(self, text="")
-        self.debug_frame.grid(row=2, column=1)
+        self.output_frame.grid(row=2, column=0, padx=10, sticky=tk.W)
+        self.debug_frame = tk.LabelFrame(self, text="Tape")
+        self.debug_frame.grid(row=3, column=0)
         self.debug_button_frame = tk.LabelFrame(self, text="")
-        self.debug_button_frame.grid(row=3, column=2)
-
+        self.debug_button_frame.grid(row=3, column=2, padx=10, pady=10)
         # Button frame for basic operations.
         self.run = tk.Button(self.button_frame, text="run", command=self.bf_default_run)
         self.run.grid(row=0, column=0)
+        self.reset_btn = tk.Button(self.button_frame, text="reset", command=self.reset)
+        self.reset_btn.grid(row=0, column=1, padx=(0,20))
         self.load = tk.Button(self.button_frame, text="load", command=self.load_bf_file)
-        self.load.grid(row=0, column=1)
+        self.load.grid(row=0, column=2)
         self.save = tk.Button(self.button_frame, text="save", command=self.save_bf_file)
-        self.save.grid(row=0, column=2)
+        self.save.grid(row=0, column=3)
         self.clear = tk.Button(self.button_frame, text="clear", command=self.clear_inputs)
-        self.clear.grid(row=0, column=3)
+        self.clear.grid(row=0, column=4, padx=(20,0))
         # Debug frame for displaying the interpreter state.
-        self.tape_text = tk.Text(self.debug_frame, background="#CCCCCC", height=1, state=tk.DISABLED)
-        self.tape_text.grid(row=0, column=0)
+        self.state_memory = tk.Text(self.debug_frame, background=self.master.cget("background"),
+                                    borderwidth=0, height=1, width=30)
+        self.state_memory.grid(row=0, column=0)
+        self.tape_text = tk.Text(self.debug_frame, background="#CCCCCC", height=1, width=127, state=tk.DISABLED)
+        self.tape_text.grid(row=1, column=0)
         # Debug Button frame for the interpreter operations.
         self.debug = tk.Button(self.debug_button_frame, text="debug", command=self.bf_debug_run)
-        self.debug.grid(row=0, column=0)
-        self.step_backward = tk.Button(self.debug_button_frame, text="←")
-        self.step_backward.grid(row=0, column=1)
-        self.step_forward = tk.Button(self.debug_button_frame, text="→", command=self.bf_step_forward)
-        self.step_forward.grid(row=0, column=2)
+        self.debug.grid(row=0, column=0, padx=(0,20))
+        self.auto_step_backward = tk.Button(self.debug_button_frame, text="←", command=self.bf_auto_step_backward)
+        self.auto_step_backward.grid(row=0, column=1)
+        self.step_backward = tk.Button(self.debug_button_frame, text="◄", command=self.bf_step_backward)
+        self.step_backward.grid(row=0, column=2)
+        self.pause_btn = tk.Button(self.debug_button_frame, text="●", command=self.toggle_pause)
+        self.pause_btn.grid(row=0, column=3)
+        self.step_forward = tk.Button(self.debug_button_frame, text="►", command=self.bf_step_forward)
+        self.step_forward.grid(row=0, column=4)
+        self.auto_step_forward = tk.Button(self.debug_button_frame, text="→", command=self.bf_auto_step_forward)
+        self.auto_step_forward.grid(row=0, column=5)
+        self.hertz_slider = tk.Scale(self.debug_button_frame, from_=1, to_=100, orient=tk.HORIZONTAL)
+        self.hertz_slider.grid(row=1, column=0, columnspan=5)
         # Text frame for modifying the source and input.
         self.input = tk.Text(self.text_frame)
         self.input.bind("<Control-r>", lambda _: self.bf_default_run)
         self.input.config(background="#CCCCCC")
         self.input.grid(row=0, column=0, sticky=tk.E+tk.W+tk.S+tk.N)
-
         self.source = tk.Text(self.text_frame)
         self.source.bind("<Control-r>", lambda _: self.bf_default_run)
         self.source.config(background="#CCCCCC")
@@ -87,53 +106,159 @@ class BrainfuckApp(tk.Frame):
         self.output.config(background="#CCCCCC", height=10, state=tk.DISABLED)
         self.output.grid(row=0, column=0, sticky=tk.E+tk.W)
 
-    def update_gui_bf_state(self):
+    def toggle_pause(self):
+        self.pause = not self.pause
+
+    def clear_inputs(self):
+        self.source.delete(1.0, tk.END)
+        self.input.delete(1.0, tk.END)
+        self.tape_text.delete(1.0, tk.END)
+
+        self.reset()
+
+    def reset(self):
+        self.master.after_cancel(self.current_after)
+        self.current_after = None
+
+        self.source.tag_delete("current_instr")
+
+        self.interpreter_states = []
+        self.interpreter.reset()
+        self.update_gui_bf_state()
+
+    def update_gui_bf_state(self, debug=False):
         self.output.config(state=tk.NORMAL)
         self.output.delete(1.0, tk.END)
         self.output.insert(1.0, self.interpreter.output_string)
         self.output.config(state=tk.DISABLED)
 
-        self.source.tag_remove("current_instr", index1="{}.{}".format(1, self.interpreter.last_i))
-        self.source.tag_add("current_instr", index1="{}.{}".format(1, self.interpreter.i))
-        self.source.tag_config("current_instr", foreground='red')
+        if debug:
+            self.source.tag_delete("current_instr")
+            self.source.tag_add("current_instr", index1="{}.{}".format(*self.get_line_offset(self.interpreter.i)))
+            self.source.tag_config("current_instr", background='green')
 
+        # TODO: Fix for when you hit edges to wrap the visible cells
         self.tape_text.config(state=tk.NORMAL)
         self.tape_text.delete(1.0, tk.END)
         tape_str = self.interpreter.tape.copy()
         tape_str[self.interpreter.tape_pos] = "<{}>".format(tape_str[self.interpreter.tape_pos])
+        tape_str = tape_str[self.interpreter.tape_pos-31:self.interpreter.tape_pos+31]
         self.tape_text.insert(1.0, tape_str)
         self.tape_text.config(state=tk.DISABLED)
 
+        self.tape_text.config(state=tk.NORMAL)
+        self.state_memory.delete(1.0, tk.END)
+        self.state_memory.insert(1.0, "State Memory: {}KiB".format(sys.getsizeof(self.interpreter_states)/1000))
+        self.tape_text.config(state=tk.DISABLED)
+
+    def get_line_offset(self, ins_pos):
+        ins_pos-=1
+        total_len = 0
+        line_count = 0
+        current_line = 1
+        lines = self.source.get(1.0, tk.END).split("\n")
+
+        for line in lines:
+            current_line = len(line)
+            total_len += current_line
+            line_count += 1
+
+            if ins_pos <= total_len:
+                break
+            ins_pos -= 1
+
+        return line_count, (ins_pos-(total_len-current_line))
+
+    # TODO: Factor functions that loop separately to not have as much redundant code or unnecessary code running
     def bf_default_run(self):
-        self.interpreter.update(source_string=self.source.get(1.0, tk.END), input_string=self.input.get(1.0, tk.END), debug=False)
-        self.interpreter.run()
-        self.update_gui_bf_state()
+        if not self.interpreter.running:
+            self.interpreter.update(source_string=self.source.get(1.0, tk.END),
+                                    input_string=self.input.get(1.0, tk.END), debug=False)
+            if self.interpreter.source_string.strip('\n     ') != '':
+                self.interpreter.running = True
+
+        if self.interpreter.i < len(self.interpreter.source_string):
+            self.interpreter.step()
+        else:
+            self.update_gui_bf_state()
+            self.interpreter.running = False
+
+        if self.interpreter.running and not self.pause:
+            self.current_after = self.master.after_idle(self.bf_default_run)
+
+
+
 
     def bf_debug_run(self):
+        self.source.tag_delete("current_instr")
+
         if not self.interpreter.running:
-            self.interpreter.update(source_string=self.source.get(1.0, tk.END), input_string=self.input.get(1.0, tk.END), debug=True)
-            if self.interpreter.source_string.strip(' \n    ') != '':
+            self.interpreter.update(source_string=self.source.get(1.0, tk.END),
+                                    input_string=self.input.get(1.0, tk.END), debug=True)
+            if self.interpreter.source_string.strip('\n     ') != '':
                 self.interpreter.running = True
+
             self.bf_step_forward()
         else:
-            self.source.tag_delete("current_instr")
             self.interpreter.reset()
             self.bf_debug_run()
 
+    # TODO: Thread the mainloop/etc on main thread and interpreter/all inited functions in secondary
+    def bf_auto_step_forward(self):
+        step_hertz = self.hertz_slider.get()
+
+        self.bf_step_forward()
+
+        if self.interpreter.running and not self.pause:
+            self.current_after = self.master.after(int(1000 / step_hertz), self.bf_auto_step_forward)
+
+    def bf_auto_step_backward(self):
+        step_hertz = self.hertz_slider.get()
+
+        self.bf_step_backward()
+
+        if self.interpreter.running and not self.pause:
+            self.current_after = self.master.after(int(1000 / step_hertz), self.bf_auto_step_backward)
+        else:
+            self.toggle_pause()
+
     def bf_step_forward(self):
         if self.interpreter.running:
-            self.update_gui_bf_state()
+            self.interpreter_states.append(self.interpreter.save_state())
             self.interpreter.step()
-        else:
-            messagebox.askquestion(message="There is no program being run, please start a debugging instance.")
 
-    # File I/O
+            self.update_gui_bf_state(debug=True)
+        #Needs to init when pasted and used first
+        elif self.interpreter.source_string.strip('\n     ') != '':
+            result = messagebox.askquestion(
+                message="There is no program being run, would you like to start a debugging instance?")
+            if result == "yes":
+                self.bf_debug_run()
+
+    def bf_step_backward(self):
+        if self.interpreter.running:
+            if self.interpreter_states == []:
+                self.toggle_pause()
+                print("Stepped to beginning.")
+                return
+
+            self.interpreter.load_state(self.interpreter_states.pop())
+            self.update_gui_bf_state(debug=True)
+        elif self.interpreter.source_string.strip('\n     ') != '':
+            result = messagebox.askquestion(
+                message="There is no program being run, would you like to start a debugging instance?")
+            if result == "yes":
+                self.bf_debug_run()
+
     def load_bf_file(self):
         filename = filedialog.askopenfilename()
+
         if filename == '':
             return
 
+        self.clear_inputs()
         self.source.delete(1.0, tk.END)
+
         with open(filename, mode='r') as source_file:
             for line in source_file:
                 self.source.insert(tk.END, line)
@@ -146,33 +271,23 @@ class BrainfuckApp(tk.Frame):
         with open(filename, mode='w') as source_file:
             source_file.writelines((self.source.get(1.0, tk.END)))
 
-    def clear_inputs(self):
-        self.source.tag_delete("current_instr")
-        self.source.delete(1.0, tk.END)
-        self.input.delete(1.0, tk.END)
-        self.tape_text.delete(1.0, tk.END)
-        self.stop()
-
-    def stop(self):
-        self.interpreter.reset()
-        self.update_gui_bf_state()
-
 
 class BrainfuckInterpreter:
-    def __init__(self, source_string=None, input_string=None, debug=False, machine_size=1):
-        self.update(source_string, input_string, debug, machine_size)
+    def __init__(self, source_string="", input_string="", debug=False, machine_size=1):
+        self.machine_size = machine_size
+        self.update(source_string, input_string, debug)
 
-    def update(self, source_string, input_string=None, debug=False, machine_size=1):
+    def update(self, source_string, input_string=None, debug=False):
         self.source_string = source_string
         self.input_string = input_string
         self.debug = debug
 
-        self.reset(machine_size)
+        self.reset()
 
-    def reset(self, machine_size=1):
+    def reset(self):
         self.running = False
-        self.max_loops = 128 * machine_size
-        self.tape_size = 32 * machine_size
+        self.max_loops = 65536 * self.machine_size
+        self.tape_size = 1024 * self.machine_size
         self.tape = [0] * self.tape_size
         self.tape_pos = int(self.tape_size / 2)
 
@@ -180,12 +295,12 @@ class BrainfuckInterpreter:
 
         self.loop_n = 0
         self.i = 0
-        self.last_i = 0
 
         self.output_string = ""
 
     def run(self):
         self.running = True
+
         if self.source_string is None:
             print("No source supplied.")
         else:
@@ -195,15 +310,25 @@ class BrainfuckInterpreter:
                 print(self.output_string)
             except RecursionError as e:
                 print(e)
+
         self.running = False
 
+# TODO: threading
+# TODO: Fix glitches to run Esolang examples
+# TODO: Modify to toggle unbounded, bounded, no wrap, wrap, EOF, etc wrap cells etc
 
     def step(self):
         if self.i < len(self.source_string):
             if self.source_string[self.i] == '+':
-                self.tape[self.tape_pos] += 1
+                if self.tape[self.tape_pos] < 127:
+                    self.tape[self.tape_pos] += 1
+                else:
+                    self.tape[self.tape_pos] = -127
             elif self.source_string[self.i] == '-':
-                self.tape[self.tape_pos] -= 1
+                if self.tape[self.tape_pos] != -127:
+                    self.tape[self.tape_pos] -= 1
+                else:
+                    self.tape[self.tape_pos] = 127
             elif self.source_string[self.i] == '>':
                 if self.tape_pos >= self.tape_size-1:
                     self.tape_pos = 0
@@ -216,35 +341,53 @@ class BrainfuckInterpreter:
                     self.tape_pos -= 1
             elif self.source_string[self.i] == ']':
                 if self.tape[self.tape_pos] != 0 and self.loop_n <= self.max_loops:
-                    self.last_i = self.i
                     self.i = self.frames.pop()
                     self.loop_n += 1
-                elif self.loop_n >self.max_loops:
+                elif self.loop_n > self.max_loops:
                     raise RecursionError("Recursion limit exceeded.\nTape: {}".format(self.tape))
+                else:
+                    # TODO: Max loops per braces (store loop_n with frame)
+                    self.frames.pop()
             elif self.source_string[self.i] == '[':
                 if self.tape[self.tape_pos] != 0:
                     self.frames.append(self.i-1)
                 else:
-                    self.last_i = self.i
+                    # TODO: Jump to proper braces (inside braces bug)
                     while self.source_string[self.i] != ']':
                         self.i += 1
+                    self.i += 1
             elif self.source_string[self.i] == ',':
                 if self.input_string != "":
                     self.tape[self.tape_pos] = ord(self.input_string[0])
                     self.input_string = self.input_string[1:]
                 else:
                     self.tape[self.tape_pos] = 0
-                    return
+                    self.running = False
             elif self.source_string[self.i] == '.':
                 self.output_string += chr(self.tape[self.tape_pos])
-            self.last_i = self.i
             self.i += 1
         else:
             self.running = False
 
+    def save_state(self):
+        return {"tape": self.tape.copy(),
+                 "tape_pos": self.tape_pos,
+                 "frames": self.frames,
+                 "i": self.i,
+                 "output_string": self.output_string,
+                 "input_string": self.input_string,
+                 "loop_n": self.loop_n}
+
+    def load_state(self, state):
+        self.tape = state["tape"]
+        self.tape_pos = state["tape_pos"]
+        self.frames = state["frames"]
+        self.loop_n = state["loop_n"]
+        self.i = state["i"]
+        self.output_string = state["output_string"]
+        self.input_string = state["input_string"]
 
 if __name__ == '__main__':
-
     root = tk.Tk()
     app = BrainfuckApp(master=root)
     app.mainloop()
