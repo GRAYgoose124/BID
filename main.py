@@ -18,14 +18,7 @@ import tkinter as tk
 import sys
 
 
-# TODO: BF breakpoints, debug run should full run and only stop at breaks then start button for what debug run does now
-# TODO: Auto-step pause, finish, etc.
-# TODO: Time Taken
-# TODO: Display filename loaded
-# TODO: Separate app into separate frames and organize
-# TODO: Display output
-# TODO: Init all variables in __init__???
-# TODO: Show position on input string
+
 class BrainfuckApp(tk.Frame):
     def __init__(self, master=None):
         super().__init__(master)
@@ -42,7 +35,7 @@ class BrainfuckApp(tk.Frame):
         self.create_widgets()
         self.update_gui_bf_state()
 
-    # TODO: organize all names, to _btn or whatever...so you don't mix up different shit...
+
     def create_widgets(self):
         self.grid(sticky=tk.E+tk.W+tk.N+tk.S)
         self.rowconfigure(1, weight=4)
@@ -124,7 +117,6 @@ class BrainfuckApp(tk.Frame):
             self.master.after_cancel(self.current_after)
         self.current_after = None
 
-        # TODO: This is the reenable that shoudl be in its own function and accompanied by debug dsiable function
         self.source.configure(state=tk.NORMAL)
         self.auto_step_forward.configure(state=tk.NORMAL)
         self.auto_step_backward.configure(state=tk.NORMAL)
@@ -148,32 +140,34 @@ class BrainfuckApp(tk.Frame):
             self.source.tag_config("current_instr", background='green')
             if self.interpreter.running:
                 self.source.configure(state=tk.DISABLED)
-        # TODO: Fix for when you hit edges to wrap the visible cells
+
         self.tape_text.config(state=tk.NORMAL)
         self.tape_text.delete(1.0, tk.END)
         tape_str = self.interpreter.tape.copy()
-        tape_str[self.interpreter.tape_pos] = "<{}>".format(tape_str[self.interpreter.tape_pos])
-        tape_str = tape_str[self.interpreter.tape_pos-32:self.interpreter.tape_pos+32]
+        try:
+            tape_str[self.interpreter.tape_pos] = "<{}>".format(tape_str[self.interpreter.tape_pos])
+            tape_str = tape_str[self.interpreter.tape_pos - 32:self.interpreter.tape_pos + 32]
+        except IndexError:
+            pass
         self.tape_text.insert(1.0, tape_str)
         self.tape_text.config(state=tk.DISABLED)
 
         self.state_memory.config(state=tk.NORMAL)
         self.state_memory.delete(1.0, tk.END)
-        self.state_memory.insert(1.0, "State Memory: {}KiB".format(sys.getsizeof(self.interpreter_states)/1000))
+        self.state_memory.insert(1.0, "State Memory: {}KiB".format(sys.getsizeof(self.interpreter_states)/1024))
         self.state_memory.config(state=tk.DISABLED)
 
         self.states.config(state=tk.NORMAL)
         self.states.delete(1.0, tk.END)
         try:
-            state1 = self.interpreter_states[-1]
+            state1 = self.interpreter_states[-1].copy()
+            state2 = self.interpreter_states[-2].copy()
             state1["tape"] = list(filter((0).__ne__, state1["tape"]))
-            state2 = self.interpreter_states[-2]
             state2["tape"] = list(filter((0).__ne__, state2["tape"]))
             self.states.insert(1.0, "{}\n{}".format(state1, state2))
         except IndexError:
             pass
         self.states.config(state=tk.DISABLED)
-
 
     def get_line_offset(self, ins_pos):
         ins_pos-=1
@@ -193,9 +187,6 @@ class BrainfuckApp(tk.Frame):
 
         return line_count, (ins_pos-(total_len-current_line))
 
-    # TODO: Factor functions that loop separately to not have as much redundant code or unnecessary code running...
-    # TODO: Disable all debug buttons in one function and have a reenable function reenable all buttons
-    # ...There are a lot of repetitions in different code blocks, functionalize this.
     def bf_default_run(self):
         if not self.interpreter.running:
             self.interpreter.update(source_string=self.source.get(1.0, tk.END),
@@ -213,9 +204,6 @@ class BrainfuckApp(tk.Frame):
         if self.interpreter.running and not self.pause:
             self.current_after = self.master.after_idle(self.bf_default_run)
 
-
-
-
     def bf_debug_run(self):
         self.source.configure(state=tk.DISABLED)
         self.source.tag_delete("current_instr")
@@ -231,51 +219,59 @@ class BrainfuckApp(tk.Frame):
             self.interpreter.reset()
             self.bf_debug_run()
 
-    # TODO: Thread the mainloop/etc on main thread and interpreter/all inited functions in secondary
-    # TODO: Separate looping parts from init parts for all buttons
-    def bf_auto_step_forward(self):
-        step_hertz = self.hertz_slider.get()
-
-        self.bf_step_forward()
-
-        if self.interpreter.running and not self.pause:
-            self.auto_step_forward.configure(state=tk.DISABLED)
-            self.auto_step_backward.configure(state=tk.DISABLED)
-            self.current_after = self.master.after(int(1000 / step_hertz), self.bf_auto_step_forward)
-        else:
-            self.auto_step_backward.configure(state=tk.NORMAL)
-            self.auto_step_forward.configure(state=tk.NORMAL)
-            self.source.configure(state=tk.NORMAL)
-
-    def bf_auto_step_backward(self):
-        step_hertz = self.hertz_slider.get()
-
-        self.bf_step_backward()
-
-        if self.interpreter.running and not self.pause:
-            self.auto_step_forward.configure(state=tk.DISABLED)
-            self.auto_step_backward.configure(state=tk.DISABLED)
-            self.current_after = self.master.after(int(1000 / step_hertz), self.bf_auto_step_backward)
-        else:
-            self.auto_step_backward.configure(state=tk.NORMAL)
-            self.auto_step_forward.configure(state=tk.NORMAL)
-            self.toggle_pause()
-
-    #TODO: if you modify source while running it'll run the loaded source...lock source input while debugging
     def bf_step_forward(self):
         if self.interpreter.running:
-            self.interpreter_states.append(self.interpreter.save_state())
+            state = self.interpreter.save_state()
+            self.interpreter_states.append(state)
             self.interpreter.step()
 
             self.update_gui_bf_state(debug=True)
-        #Needs to init when pasted and used first
+
         elif self.interpreter.source_string.strip('\n     ') != '':
             result = messagebox.askquestion(
                 message="There is no program being run, would you like to start a debugging instance?")
             if result == "yes":
                 self.bf_debug_run()
 
+    def bf_auto_step_forward(self):
+        step_hertz = self.hertz_slider.get()
+
+        self.bf_step_forward()
+
+        if self.pause:
+            self.auto_step_backward.configure(state=tk.NORMAL)
+            self.auto_step_forward.configure(state=tk.NORMAL)
+            self.source.configure(state=tk.NORMAL)
+            self.toggle_pause()
+            return
+
+        if self.interpreter.running and not self.pause:
+            self.auto_step_forward.configure(state=tk.DISABLED)
+            self.auto_step_backward.configure(state=tk.DISABLED)
+            self.current_after = self.master.after(int(1000 / step_hertz), self.bf_auto_step_forward)
+
+    def bf_auto_step_backward(self):
+        step_hertz = self.hertz_slider.get()
+
+        self.bf_step_backward()
+
+        if self.pause:
+            self.toggle_pause()
+            self.auto_step_backward.configure(state=tk.NORMAL)
+            self.auto_step_forward.configure(state=tk.NORMAL)
+            self.source.configure(state=tk.NORMAL)
+            return
+
+        if self.interpreter.running and not self.pause:
+            self.auto_step_forward.configure(state=tk.DISABLED)
+            self.auto_step_backward.configure(state=tk.DISABLED)
+            self.current_after = self.master.after(int(1000 / step_hertz), self.bf_auto_step_backward)
+
+
     def bf_step_backward(self):
+        if not self.interpreter.running and self.interpreter_states != []:
+            self.interpreter.running = True
+
         if self.interpreter.running:
             if self.interpreter_states == []:
                 self.toggle_pause()
@@ -353,8 +349,6 @@ class BrainfuckInterpreter:
 
         self.running = False
 
-# TODO: threading
-# TODO: Fix glitches to run Esolang examples (Not really glitches, just different interpreter types)
 # TODO: Modify to toggle unbounded, bounded, no wrap, wrap, EOF, etc wrap cells etc Have a new command like # to...
 # ... denote all this so individual programs can specify their needs.
     def step(self):
@@ -395,7 +389,6 @@ class BrainfuckInterpreter:
                     # TODO: Jump to proper braces (inside braces bug)
                     while self.source_string[self.i] != ']':
                         self.i += 1
-                    self.i += 1
             elif self.source_string[self.i] == ',':
                 if self.input_string != "":
                     self.tape[self.tape_pos] = ord(self.input_string[0])
