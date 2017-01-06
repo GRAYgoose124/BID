@@ -1,7 +1,8 @@
 # TODO: Make Input smaller (same size as O/P and on the same side)
-# TODO: Add BF tutorial, design this to give a good understanding of program structure and interpreter workings. ...
+# TODO: Add BF tutorial, design this to give a good understanding of program structure and interpreter workings....
 # TODO: Make it show the parts of the python code being utilized in interpreter?
 # TODO: BF breakpoints, debug run should full run and only stop at breaks then start button for what debug run does now
+# ... modify bf code?
 # TODO: Auto-step pause, finish, etc.
 # TODO: Time Taken
 # TODO: Display filename loaded
@@ -15,7 +16,14 @@
 # TODO: organize all names, to _btn or whatever...so you don't mix up different shit...
 # TODO: Clearing while debugging doesn't work
 # TODO: The GUI disable/reenabled and mods should have their own functions because it's in many places
-# TODO: Fix for when you hit edges to wrap the visible cells
-# TODO: Factor functions that loop separately to not have as much redundant code or unnecessary code running...
+# TODO: Fix for when you hit edges to wrap the visible cells :GUI debug_tape
+# TODO: Factor functions that loop separately to not have as much redundant code or unnecessary code running ...
 # TODO: Disable all debug buttons in one function and have a reenable function reenable all buttons
 # ...There are a lot of repetitions in different code blocks, functionalize this.
+# TODO: Modify to toggle unbounded, bounded, no wrap, wrap, EOF, etc wrap cells etc Have a new command like # to ...
+# ... denote all this so individual programs can specify their needs.
+# TODO: When no source is loaded or edited, just disable all buttons for running etc...These should all be the ones ...
+# ... which have grouped enable/disable functions.
+# TODO: bf_default_run update before running=True... abstract the "turn on machine, but don't run now" interface
+# TODO: Make source take half the size and put a quine-like self source reader to show interpreter source running
+# TODO: The debug current instruction seems to skip [] and is somewhat hard to interpret sometimes.
