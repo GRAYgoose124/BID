@@ -13,10 +13,15 @@
 #
 #   You should have received a copy of the GNU General Public License
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>
+from collections import deque
 
 class BrainfuckInterpreter:
-    def __init__(self, source_string="", input_string="", debug=False, machine_size=1):
-        self.machine_size = machine_size
+    def __init__(self, source_string="", input_string="", debug=False):
+        self.max_loops = 1048576
+        self.tape_size = 128
+        self.max_cell_value = 127
+        self.min_cell_value = -127
+
         self.update(source_string, input_string, debug)
 
     def update(self, source_string, input_string=None, debug=False):
@@ -28,14 +33,13 @@ class BrainfuckInterpreter:
 
     def reset(self):
         self.running = False
-        self.max_loops = 65536 * self.machine_size
-        self.tape_size = 1024 * self.machine_size
+
         self.tape = [0] * self.tape_size
-        self.tape_pos = int(self.tape_size / 2)
+        self.tape_pos = 0
 
         self.frames = []
+        self.braces = 0
 
-        self.loop_n = 0
         self.i = 0
 
         self.output_string = ""
@@ -58,48 +62,53 @@ class BrainfuckInterpreter:
     def step(self):
         if self.i < len(self.source_string):
             if self.source_string[self.i] == '+':
-                if self.tape[self.tape_pos] < 127:
+                if self.tape[self.tape_pos] <= self.max_cell_value:
                     self.tape[self.tape_pos] += 1
                 else:
-                    self.tape[self.tape_pos] = -127
+                    self.tape[self.tape_pos] = self.min_cell_value
+
             elif self.source_string[self.i] == '-':
-                if self.tape[self.tape_pos] != -127:
+                if self.tape[self.tape_pos] >= self.min_cell_value:
                     self.tape[self.tape_pos] -= 1
                 else:
-                    self.tape[self.tape_pos] = 127
+                    self.tape[self.tape_pos] = self.max_cell_value
+
             elif self.source_string[self.i] == '>':
-                if self.tape_pos >= self.tape_size-1:
-                    self.tape_pos = 0
-                else:
-                    self.tape_pos += 1
+                if self.tape_pos >= self.tape_size-2:
+                    self.tape.append(0)
+                    self.tape_size += 1
+                self.tape_pos += 1
+
             elif self.source_string[self.i] == '<':
                 if self.tape_pos == 0:
-                    self.tape_pos = self.tape_size-1
-                else:
-                    self.tape_pos -= 1
+                    self.tape.insert(0, 0)
+                    self.tape_size += 1
+                self.tape_pos -= 1
+
             elif self.source_string[self.i] == ']':
-                if self.tape[self.tape_pos] != 0 and self.loop_n <= self.max_loops:
-                    self.i = self.frames.pop()
-                    self.loop_n += 1
-                elif self.loop_n > self.max_loops:
-                    raise RecursionError("Recursion limit exceeded.\nTape: {}".format(self.tape))
+                if self.tape[self.tape_pos] != 0:
+                    self.i = self.frames[-1]
                 else:
-                    # TODO: Max loops per braces (store loop_n with frame)
                     self.frames.pop()
+
             elif self.source_string[self.i] == '[':
                 if self.tape[self.tape_pos] != 0:
-                    self.frames.append(self.i-1)
+                    self.frames.append(self.i)
                 else:
-                    # TODO: Jump to proper braces (inside braces bug)
-                    while self.source_string[self.i] != ']':
+                    brace_counter = 0
+                    while self.tape[self.tape_pos] != ']' and brace_counter <= 0:
+                        if self.tape[self.tape_pos] == '[':
+                            brace_counter += 1
+                        if self.tape[self.tape_pos] == ']':
+                            brace_counter -= 1
                         self.i += 1
+                    self.i += 1
+
             elif self.source_string[self.i] == ',':
                 if self.input_string != "":
                     self.tape[self.tape_pos] = ord(self.input_string[0])
                     self.input_string = self.input_string[1:]
-                else:
-                    self.tape[self.tape_pos] = 0
-                    self.running = False
+
             elif self.source_string[self.i] == '.':
                 self.output_string += chr(self.tape[self.tape_pos])
             self.i += 1
@@ -112,14 +121,12 @@ class BrainfuckInterpreter:
                  "frames": self.frames,
                  "i": self.i,
                  "output_string": self.output_string,
-                 "input_string": self.input_string,
-                 "loop_n": self.loop_n}
+                 "input_string": self.input_string}
 
     def load_state(self, state):
         self.tape = state["tape"]
         self.tape_pos = state["tape_pos"]
         self.frames = state["frames"]
-        self.loop_n = state["loop_n"]
         self.i = state["i"]
         self.output_string = state["output_string"]
         self.input_string = state["input_string"]

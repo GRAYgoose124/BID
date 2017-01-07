@@ -32,14 +32,20 @@ class BID(tk.Frame):
         self.pause = False
         self.current_after = None
 
+        self.breakpoint_mouse_bind = None
+        self.breakpoints = []
+
         # Set up GUI window
         self.master.wm_title("Brainfuck Interactive Developer")
         self.master.columnconfigure(0, weight=1)
         self.master.rowconfigure(0, weight=1)
 
+
+
         self.create_widgets()
         self.update_gui()
 
+    # GUI
     def create_widgets(self):
         self.grid(sticky=tk.E+tk.W+tk.N+tk.S)
         self.rowconfigure(1, weight=4)
@@ -87,14 +93,16 @@ class BID(tk.Frame):
         self.auto_step_backward_btn.grid(row=0, column=1, )
         self.step_backward_btn = tk.Button(self.debug_button_frame, text="◄", command=self.bf_step_backward)
         self.step_backward_btn.grid(row=0, column=2)
-        self.pause_btn = tk.Button(self.debug_button_frame, text="●", command=lambda: not self.pause)
+        self.pause_btn = tk.Button(self.debug_button_frame, text="●", command=self.toggle_pause)
         self.pause_btn.grid(row=0, column=3)
         self.step_forward_btn = tk.Button(self.debug_button_frame, text="►", command=self.bf_step_forward)
         self.step_forward_btn.grid(row=0, column=4)
         self.auto_step_forward_btn = tk.Button(self.debug_button_frame, text="→", command=lambda: self.bf_auto_step("forward"))
         self.auto_step_forward_btn.grid(row=0, column=5, padx=(0, 5))
         self.hertz_scale = tk.Scale(self.debug_button_frame, from_=1, to_=256, orient=tk.HORIZONTAL, sliderlength=20)
-        self.hertz_scale.grid(row=1, column=0, columnspan=5, pady=(0, 5))
+        self.hertz_scale.grid(row=1, column=0, pady=(0, 5), columnspan=1)
+        self.break_btn = tk.Button(self.debug_button_frame, text="breakpoint", command=self.set_breakpoint)
+        self.break_btn.grid(row=1, column=2, columnspan=5, padx=(0, 5))
 
         # Text frame for modifying the source and input.
         self.source_text = tk.Text(self.text_frame)
@@ -111,35 +119,6 @@ class BID(tk.Frame):
         self.output_text.config(background="#CCCCCC", height=10, state=tk.DISABLED)
         self.output_text.grid(row=0, column=1, sticky=tk.E + tk.W)
 
-    def clear_all(self):
-        """Clear the GUI Text elements and resets the interpreter."""
-        answer = messagebox.askyesno("Full Reset",
-                                "This will completely reset the IDE, including your source.\nAre you sure?")
-
-        if answer == "yes":
-            self.source_text.delete(1.0, tk.END)
-            self.input_text.delete(1.0, tk.END)
-            self.tape_text.delete(1.0, tk.END)
-
-            self.reset()
-
-    def reset(self):
-        """Stops and resets the interpreter and debug elements."""
-        if self.current_after is not None:
-            self.master.after_cancel(self.current_after)
-        self.current_after = None
-
-        # Reset locked GUI elements.
-        self.source_text.configure(state=tk.NORMAL)
-        self.auto_step_forward_btn.configure(state=tk.NORMAL)
-        self.auto_step_backward_btn.configure(state=tk.NORMAL)
-        self.source_text.tag_delete("current_instr")
-
-        # Reset the interpreter
-        self.interpreter_states = []
-        self.interpreter.reset()
-        self.update_gui()
-
     def update_gui(self, debug=False):
         """Update GUI Elements. (usually called after an interpreter state change)"""
         self.output_text.config(state=tk.NORMAL)
@@ -147,25 +126,43 @@ class BID(tk.Frame):
         self.output_text.insert(1.0, self.interpreter.output_string)
         self.output_text.config(state=tk.DISABLED)
 
-        # Place the marker for current debugger instruction
-        if debug:
-            if self.interpreter.running:
-                self.source_text.configure(state=tk.NORMAL)
+        # Place the markers for current debugger instructions
+        if debug and self.interpreter.running:
+            self.source_text.configure(state=tk.NORMAL)
 
-            self.source_text.tag_delete("current_instr")
-            self.source_text.tag_add("current_instr", index1="{}.{}".format(*self.get_line_offset(self.interpreter.i)))
-            self.source_text.tag_config("current_instr", background='green')
+            self.source_text.tag_delete("done_instr")
+            self.source_text.tag_delete("next_instr")
+            if self.interpreter.i <= len(self.interpreter.source_string)-1:
+                if self.interpreter.source_string[self.interpreter.i] == '[' \
+                        and self.interpreter.source_string[self.interpreter_states[-1]["i"]] == ']':
+                    self.source_text.tag_add("done_instr",
+                                             index1="{}.{}".format(*self.get_line_offset(self.interpreter_states[-1]["i"])))
+                    self.source_text.tag_config("done_instr", background='green')
+                else:
+                    self.source_text.tag_add("done_instr",
+                                             index1="{}.{}".format(*self.get_line_offset(self.interpreter.i-1)))
+                    self.source_text.tag_config("done_instr", background='green')
 
-            if self.interpreter.running:
-                self.source_text.configure(state=tk.DISABLED)
+                self.source_text.tag_add("next_instr", index1="{}.{}".format(*self.get_line_offset(self.interpreter.i)))
+                self.source_text.tag_config("next_instr", background='red')
+
+            self.source_text.configure(state=tk.DISABLED)
 
         # Update the tape GUI
         self.tape_text.config(state=tk.NORMAL)
         self.tape_text.delete(1.0, tk.END)
 
         tape_str = self.interpreter.tape.copy()
-        tape_str[self.interpreter.tape_pos] = "<{}>".format(tape_str[self.interpreter.tape_pos])
-        tape_str = tape_str[self.interpreter.tape_pos - 32:self.interpreter.tape_pos + 32]
+        tape_str[self.interpreter.tape_pos] = "<{}>".format(tape_str[self.interpreter.tape_pos]
+                                                            )
+        if self.interpreter.tape_size - self.interpreter.tape_pos < 32:
+            start = self.interpreter.tape_pos - (self.interpreter.tape_size - self.interpreter.tape_pos)
+            end = self.interpreter.tape_pos + (self.interpreter.tape_size - self.interpreter.tape_pos)
+        else:
+            start = self.interpreter.tape_pos - 32
+            end = self.interpreter.tape_pos + 32
+
+        tape_str = tape_str[start:end]
 
         self.tape_text.insert(1.0, tape_str)
         self.tape_text.config(state=tk.DISABLED)
@@ -191,7 +188,7 @@ class BID(tk.Frame):
 
     def get_line_offset(self, ins_pos):
         """Find where the current instruction is in the Text element by (line, column) from source offset."""
-        ins_pos-=1
+        #ins_pos-=1
         total_len = 0
         line_count = 0
         current_line = 1
@@ -208,13 +205,69 @@ class BID(tk.Frame):
 
         return line_count, (ins_pos-(total_len-current_line))
 
+    def get_source_offset(self, line_offset):
+        y, x = line_offset.split(".")
+        y, x = int(y), int(x)
+
+        total_len = 0
+        line_count = 0
+        lines = self.source_text.get(1.0, tk.END).split("\n")
+
+        for line in lines:
+            line_count += 1
+            if line_count == y:
+                total_len += x
+                return total_len
+
+            total_len += len(line)
+
+    def toggle_pause(self):
+        self.pause = not self.pause
+
+    def clear_all(self):
+        """Clear the GUI Text elements and resets the interpreter."""
+        answer = messagebox.askyesno("Full Reset",
+                                "This will completely reset the IDE, including your source.\nAre you sure?")
+
+        if answer:
+            self.source_text.delete(1.0, tk.END)
+            self.input_text.delete(1.0, tk.END)
+            self.tape_text.delete(1.0, tk.END)
+
+            self.reset()
+
+    def reset(self):
+        """Stops and resets the interpreter and debug elements."""
+        if self.current_after is not None:
+            self.master.after_cancel(self.current_after)
+        self.current_after = None
+
+        # Reset locked GUI elements.
+        self.source_text.configure(state=tk.NORMAL)
+        self.auto_step_forward_btn.configure(state=tk.NORMAL)
+        self.auto_step_backward_btn.configure(state=tk.NORMAL)
+        self.source_text.tag_delete("done_instr")
+        self.source_text.tag_delete("next_instr")
+
+        # Reset the interpreter and GUI related states
+        self.breakpoints = []
+        self.interpreter_states = []
+        self.interpreter.reset()
+        self.update_gui()
+
+    # Run
     def bf_default_run(self):
         """Run the interpreter normally with the source Text."""
         if not self.interpreter.running:
             self.reset()
-            self.interpreter.update(source_string=self.source_text.get(1.0, tk.END),
-                                    input_string=self.input_text.get(1.0, tk.END), debug=False)
+            self.interpreter.update(source_string=self.source_text.get(1.0, tk.END)[:-1],
+                                    input_string=self.input_text.get(1.0, tk.END)[:-1], debug=False)
             self.interpreter.running = True
+        else:
+            self.source_text.tag_delete("done_instr")
+            self.source_text.tag_delete("next_instr")
+            self.interpreter_states = []
+            self.update_gui()
 
         self._bf_default_run()
 
@@ -230,14 +283,16 @@ class BID(tk.Frame):
         if self.interpreter.running:
             self.current_after = self.master.after_idle(self._bf_default_run)
 
+    # Debug
     def bf_debug_start(self):
         """Start a debugging instance."""
         self.source_text.configure(state=tk.DISABLED)
-        self.source_text.tag_delete("current_instr")
+        self.source_text.tag_delete("done_instr")
+        self.source_text.tag_delete("next_instr")
 
         if not self.interpreter.running:
-            self.interpreter.update(source_string=self.source_text.get(1.0, tk.END),
-                                    input_string=self.input_text.get(1.0, tk.END), debug=True)
+            self.interpreter.update(source_string=self.source_text.get(1.0, tk.END)[:-1],
+                                    input_string=self.input_text.get(1.0, tk.END)[:-1], debug=True)
             self.interpreter.running = True
             if self.interpreter.source_string.strip('\n     ') != '':
                 self.interpreter.running = True
@@ -282,24 +337,42 @@ class BID(tk.Frame):
         else:
             return
 
-        if self.pause or not self.interpreter.running:
+        # If active, continue stepping. If we're at a breakpoint, stop.
+        if self.interpreter.running and not self.pause and self.interpreter.i not in self.breakpoints:
+            self.auto_step_backward_btn.configure(state=tk.DISABLED)
+            self.auto_step_forward_btn.configure(state=tk.DISABLED)
+            self.current_after = self.master.after(int(1000 / step_hertz), lambda: self.bf_auto_step(direction))
+        # Unlock GUI as the debugger is inactive.
+        else:
             self.auto_step_backward_btn.configure(state=tk.NORMAL)
             self.auto_step_forward_btn.configure(state=tk.NORMAL)
             self.source_text.configure(state=tk.NORMAL)
             self.pause = False
 
-        if self.interpreter.running and not self.pause:
-            self.auto_step_backward_btn.configure(state=tk.DISABLED)
-            self.auto_step_forward_btn.configure(state=tk.DISABLED)
-            self.current_after = self.master.after(int(1000 / step_hertz), lambda: self.bf_auto_step(direction))
+    def set_breakpoint(self):
+        """Set a breakpoint to stop auto-stepping."""
+        self.source_text.configure(background="#CCFFCC")
+        self.breakpoint_mouse_bind =self.source_text.bind("<Button-1>", self._set_breakpoint)
 
+    def _set_breakpoint(self, event):
+        self.source_text.configure(background="#CCCCCC")
+        self.source_text.unbind("<Button-1>", self.breakpoint_mouse_bind)
+        click_location = self.source_text.index("@{},{}".format(event.x, event.y))
+        source_location = self.get_source_offset(click_location)
+        self.breakpoints.append(source_location)
+
+    def remove_breakpoint(self):
+        pass
+
+    # File I/O
     def load_bf_file(self):
+        """Load a brainfuck file from disk."""
         filename = filedialog.askopenfilename(defaultextension=".bf",
                                               filetypes=(("Brainfuck Script", "*.bf"), ("All Files", "*.*")))
 
         try:
             with open(filename, mode='r') as source_file:
-                self.clear_all()
+                self.reset()
                 self.source_text.delete(1.0, tk.END)
 
                 for line in source_file:
@@ -308,6 +381,7 @@ class BID(tk.Frame):
             pass
 
     def save_bf_file(self):
+        """Save a brainfuck file from disk."""
         filename = filedialog.asksaveasfilename(defaultextension=".bf",
                                                 filetypes=(("Brainfuck Script", "*.bf"), ("All Files", "*.*")))
 
