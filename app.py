@@ -17,6 +17,7 @@
 import tkinter as tk
 from tkinter import filedialog, messagebox
 import sys
+import os.path
 
 from interpreter import BrainfuckInterpreter
 
@@ -34,13 +35,12 @@ class BID(tk.Frame):
 
         self.breakpoint_mouse_bind = None
         self.breakpoints = []
+        self.breakpoint_text_locations = []
 
         # Set up GUI window
         self.master.wm_title("Brainfuck Interactive Developer")
         self.master.columnconfigure(0, weight=1)
         self.master.rowconfigure(0, weight=1)
-
-
 
         self.create_widgets()
         self.update_gui()
@@ -54,6 +54,8 @@ class BID(tk.Frame):
         # Parent frames
         self.button_frame = tk.LabelFrame(self, text="")
         self.button_frame.grid(row=0, column=0, padx=10, pady=10, sticky=tk.W)
+        self.info_frame = tk.LabelFrame(self, text="")
+        self.info_frame.grid(row=0, column=1, columnspan=2, padx=10, pady=10,)
         self.text_frame = tk.LabelFrame(self, text="Source")
         self.text_frame.grid(row=1, column=0, columnspan=3, padx=10, sticky=tk.E+tk.W+tk.S+tk.N)
         self.text_frame.rowconfigure(0, weight=1)
@@ -77,6 +79,16 @@ class BID(tk.Frame):
         self.clear_btn = tk.Button(self.button_frame, text="clear all", command=self.clear_all)
         self.clear_btn.grid(row=0, column=4, padx=(20, 5))
 
+        # Info frame for miscellaneous info.
+        self.active_file_text = tk.Text(self.info_frame, background=self.master.cget("background"),
+                                        borderwidth=0, height=1, width = 40)
+        self.active_file_text.grid(row=0, column=0, padx=5, pady=5)
+        self.active_file_text.config(state=tk.DISABLED)
+        self.is_running_text = tk.Text(self.info_frame, background=self.master.cget("background"),
+                                        borderwidth=0, height=1, width = 40)
+        self.is_running_text.grid(row=1, column=0, padx=5, pady=5)
+        self.is_running_text.config(state=tk.DISABLED)
+
         # Debug frame for displaying the interpreter state.
         self.states_text = tk.Text(self.debug_frame, height=2, width=97, background="#CCCCCC", wrap=tk.NONE)
         self.states_text.grid(row=0, column=0, padx=5, pady=5)
@@ -99,18 +111,18 @@ class BID(tk.Frame):
         self.step_forward_btn.grid(row=0, column=4)
         self.auto_step_forward_btn = tk.Button(self.debug_button_frame, text="→", command=lambda: self.bf_auto_step("forward"))
         self.auto_step_forward_btn.grid(row=0, column=5, padx=(0, 5))
-        self.hertz_scale = tk.Scale(self.debug_button_frame, from_=1, to_=256, orient=tk.HORIZONTAL, sliderlength=20)
+        self.hertz_scale = tk.Scale(self.debug_button_frame, from_=1, to_=300, orient=tk.HORIZONTAL, sliderlength=20)
         self.hertz_scale.grid(row=1, column=0, pady=(0, 5), columnspan=1)
         self.break_btn = tk.Button(self.debug_button_frame, text="breakpoint", command=self.set_breakpoint)
         self.break_btn.grid(row=1, column=2, columnspan=5, padx=(0, 5))
 
-        # Text frame for modifying the source and input.
+        # Text frame for modifying the source.
         self.source_text = tk.Text(self.text_frame)
         self.source_text.bind("<Control-r>", lambda _: self.bf_default_run)
         self.source_text.config(background="#CCCCCC")
         self.source_text.grid(row=0, column=0, sticky=tk.E + tk.W + tk.S + tk.N)
 
-        # Output Frame for displaying the results of running the BF program.
+        # Output Frame for displaying the results of running the BF program  and input.
         self.input_text = tk.Text(self.io_frame)
         self.input_text.bind("<Control-r>", lambda _: self.bf_default_run)
         self.input_text.config(background="#CCCCCC", height=10)
@@ -125,6 +137,21 @@ class BID(tk.Frame):
         self.output_text.delete(1.0, tk.END)
         self.output_text.insert(1.0, self.interpreter.output_string)
         self.output_text.config(state=tk.DISABLED)
+
+        # Update to display whether running or not.
+        self.is_running_text.config(state=tk.NORMAL)
+        if self.interpreter.running:
+            self.is_running_text.delete(1.0, tk.END)
+            self.is_running_text.insert(1.0, "Now Running.")
+        else:
+            self.is_running_text.delete(1.0, tk.END)
+        self.is_running_text.config(state=tk.DISABLED)
+
+        # Place the breakpoint markers
+        for i, bp in enumerate(self.breakpoint_text_locations):
+            self.source_text.tag_delete("bp{}".format(i))
+            self.source_text.tag_add("bp{}".format(i), index1=bp)
+            self.source_text.tag_config("bp{}".format(i), background='red')
 
         # Place the markers for current debugger instructions
         if debug and self.interpreter.running:
@@ -144,7 +171,7 @@ class BID(tk.Frame):
                     self.source_text.tag_config("done_instr", background='green')
 
                 self.source_text.tag_add("next_instr", index1="{}.{}".format(*self.get_line_offset(self.interpreter.i)))
-                self.source_text.tag_config("next_instr", background='red')
+                self.source_text.tag_config("next_instr", background='blue')
 
             self.source_text.configure(state=tk.DISABLED)
 
@@ -153,8 +180,7 @@ class BID(tk.Frame):
         self.tape_text.delete(1.0, tk.END)
 
         tape_str = self.interpreter.tape.copy()
-        tape_str[self.interpreter.tape_pos] = "<{}>".format(tape_str[self.interpreter.tape_pos]
-                                                            )
+        tape_str[self.interpreter.tape_pos] = "<{}>".format(tape_str[self.interpreter.tape_pos])
         if self.interpreter.tape_size - self.interpreter.tape_pos < 32:
             start = self.interpreter.tape_pos - (self.interpreter.tape_size - self.interpreter.tape_pos)
             end = self.interpreter.tape_pos + (self.interpreter.tape_size - self.interpreter.tape_pos)
@@ -186,9 +212,8 @@ class BID(tk.Frame):
             pass
         self.states_text.config(state=tk.DISABLED)
 
-    def get_line_offset(self, ins_pos):
+    def get_line_offset(self, source_offset):
         """Find where the current instruction is in the Text element by (line, column) from source offset."""
-        #ins_pos-=1
         total_len = 0
         line_count = 0
         current_line = 1
@@ -199,11 +224,11 @@ class BID(tk.Frame):
             total_len += current_line
             line_count += 1
 
-            if ins_pos <= total_len:
+            if source_offset <= total_len:
                 break
-            ins_pos -= 1
+            source_offset -= 1
 
-        return line_count, (ins_pos-(total_len-current_line))
+        return line_count, (source_offset - (total_len - current_line))
 
     def get_source_offset(self, line_offset):
         y, x = line_offset.split(".")
@@ -233,6 +258,10 @@ class BID(tk.Frame):
             self.source_text.delete(1.0, tk.END)
             self.input_text.delete(1.0, tk.END)
             self.tape_text.delete(1.0, tk.END)
+            self.active_file_text.delete(1.0, tk.END)
+
+            self.breakpoints = []
+            self.breakpoint_text_locations = []
 
             self.reset()
 
@@ -243,6 +272,7 @@ class BID(tk.Frame):
         self.current_after = None
 
         # Reset locked GUI elements.
+        self.run_btn.config(state=tk.NORMAL)
         self.source_text.configure(state=tk.NORMAL)
         self.auto_step_forward_btn.configure(state=tk.NORMAL)
         self.auto_step_backward_btn.configure(state=tk.NORMAL)
@@ -250,7 +280,6 @@ class BID(tk.Frame):
         self.source_text.tag_delete("next_instr")
 
         # Reset the interpreter and GUI related states
-        self.breakpoints = []
         self.interpreter_states = []
         self.interpreter.reset()
         self.update_gui()
@@ -269,6 +298,7 @@ class BID(tk.Frame):
             self.interpreter_states = []
             self.update_gui()
 
+        self.run_btn.config(state=tk.DISABLED)
         self._bf_default_run()
 
     def _bf_default_run(self):
@@ -276,12 +306,13 @@ class BID(tk.Frame):
         if self.interpreter.i < len(self.interpreter.source_string):
             self.interpreter.step()
         else:
-            self.update_gui()
-            self.source_text.configure(state=tk.NORMAL)
             self.interpreter.running = False
 
         if self.interpreter.running:
             self.current_after = self.master.after_idle(self._bf_default_run)
+        else:
+            self.run_btn.config(state=tk.NORMAL)
+            self.update_gui()
 
     # Debug
     def bf_debug_start(self):
@@ -346,7 +377,9 @@ class BID(tk.Frame):
         else:
             self.auto_step_backward_btn.configure(state=tk.NORMAL)
             self.auto_step_forward_btn.configure(state=tk.NORMAL)
-            self.source_text.configure(state=tk.NORMAL)
+
+            if not self.pause:
+                self.source_text.configure(state=tk.NORMAL)
             self.pause = False
 
     def set_breakpoint(self):
@@ -358,11 +391,17 @@ class BID(tk.Frame):
         self.source_text.configure(background="#CCCCCC")
         self.source_text.unbind("<Button-1>", self.breakpoint_mouse_bind)
         click_location = self.source_text.index("@{},{}".format(event.x, event.y))
-        source_location = self.get_source_offset(click_location)
-        self.breakpoints.append(source_location)
-
-    def remove_breakpoint(self):
-        pass
+        source_location = self.get_source_offset(click_location) + 1
+        if click_location not in self.breakpoint_text_locations:
+            self.breakpoint_text_locations.append(click_location)
+            self.breakpoints.append(source_location)
+        else:
+            for i, bp in enumerate(self.breakpoints):
+                if bp == source_location:
+                    self.source_text.tag_delete("bp{}".format(i))
+                    del self.breakpoint_text_locations[i]
+                    del self.breakpoints[i]
+        self.update_gui()
 
     # File I/O
     def load_bf_file(self):
@@ -377,6 +416,11 @@ class BID(tk.Frame):
 
                 for line in source_file:
                     self.source_text.insert(tk.END, line)
+
+            self.active_file_text.config(state=tk.NORMAL)
+            self.active_file_text.delete(1.0, tk.END)
+            self.active_file_text.insert(1.0, os.path.split(filename)[-1])
+            self.active_file_text.config(state=tk.DISABLED)
         except FileNotFoundError:
             pass
 
@@ -388,5 +432,10 @@ class BID(tk.Frame):
         try:
             with open(filename, mode='w') as source_file:
                 source_file.writelines((self.source_text.get(1.0, tk.END)))
+
+            self.active_file_text.config(state=tk.NORMAL)
+            self.active_file_text.delete(1.0, tk.END)
+            self.active_file_text.insert(1.0, os.path.split(filename)[-1])
+            self.active_file_text.config(state=tk.DISABLED)
         except FileNotFoundError:
             pass

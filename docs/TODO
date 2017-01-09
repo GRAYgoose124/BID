@@ -1,11 +1,8 @@
 # TODO: Add BF tutorial, design this to give a good understanding of program structure and interpreter workings....
 # TODO: Make it show the parts of the python code being utilized in interpreter?(Output interpreter source as you debug)
-# TODO: Breakpoints should be visible!
+# TODO: Clean up visualization!!! Make the tape more readable.
 # TODO: Time Taken
-# TODO: Display filename loaded
-# TODO: Init all interpreter variables in __init__???
 # TODO: Show position on input string
-# TODO: Should I allow live source editing?
 # TODO: Disable all debug buttons in one function and have a reenable function reenable all buttons
 # ...There are a lot of repetitions in different code blocks, functionalize this.
 # TODO: Modify to toggle unbounded, bounded, no wrap, wrap, EOF, etc wrap cells etc Have a new command like # to ...
@@ -16,5 +13,8 @@
 # TODO: Syntax Errors! Match [] before execution (I.e set up jumps at start and read from dict key: value ]pos: [pos)
 # TODO: Runtime Errors! Trying to < or > at end of tape if bounded.
 # TODO: Running In progress display and Run after debug to continue the process and finish
-# TODO: Compile brainfuck for running.
-# TODO: When debugging, if you click run it should finish the program normally.
+# TODO: Compile brainfuck for running. (Even debugging at high rates should be deferred to running normally)
+# Abstract parser for compiler/interpreter
+# Just recall __init__ when reset / init all variables there
+# Mix breakpoint color with running / next instr color.
+# Break up widget and update functions?

@@ -13,11 +13,9 @@
 #
 #   You should have received a copy of the GNU General Public License
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>
-from collections import deque
 
 class BrainfuckInterpreter:
     def __init__(self, source_string="", input_string="", debug=False):
-        self.max_loops = 1048576
         self.tape_size = 128
         self.max_cell_value = 127
         self.min_cell_value = -127
@@ -35,7 +33,7 @@ class BrainfuckInterpreter:
         self.running = False
 
         self.tape = [0] * self.tape_size
-        self.tape_pos = 0
+        self.tape_pos = int(self.tape_size / 2)
 
         self.frames = []
         self.braces = 0
@@ -96,10 +94,10 @@ class BrainfuckInterpreter:
                     self.frames.append(self.i)
                 else:
                     brace_counter = 0
-                    while self.tape[self.tape_pos] != ']' and brace_counter <= 0:
-                        if self.tape[self.tape_pos] == '[':
+                    while self.source_string[self.i] != ']' and brace_counter >= 0:
+                        if self.source_string[self.i] == '[':
                             brace_counter += 1
-                        if self.tape[self.tape_pos] == ']':
+                        if self.source_string[self.i] == ']':
                             brace_counter -= 1
                         self.i += 1
                     self.i += 1
@@ -111,6 +109,7 @@ class BrainfuckInterpreter:
 
             elif self.source_string[self.i] == '.':
                 self.output_string += chr(self.tape[self.tape_pos])
+
             self.i += 1
         else:
             self.running = False

@@ -1,5 +1,5 @@
 # Brainfuck Interactive Developer
-   BID is an IDE for [brainfuck](https://esolangs.org/wiki/Brainfuck) designed to aid in learning about debugging and 
+BID is an IDE for [brainfuck](https://esolangs.org/wiki/Brainfuck) designed to aid in learning about debugging and 
 interpreter operation. It is meant to be an all-in-one learning environment, including tutorials and practice.
 
 Brainfuck is a great language to learn about these topics. It is easy to understand because of its minimal form, but it
@@ -26,13 +26,18 @@ debug button. In order from left to right they are:
 `auto-step backward, step backward, pause auto-step, step forward, auto-step forward`
 
 To understand the debugger, first know that it will display the just finished instruction as well as the next 
-instruction to run in red and green respectively. Next, at the bottom the window, the bottom-most textbox that starts
+instruction to run in green and blued respectively. Next, at the bottom the window, the bottom-most textbox that starts
 filled in with `...0 0 <0> 0 0...` is displaying the brainfuck tape for the currently debugged program at that moment.
 The angle brackets (<>) denote the active cell. This is the cell which brainfuck is currently using with `+-,.[]`.
 
 Above the tape textbox is the state textbox. It displays the previous two states, before the last executed instruction
 ran. This includes the tape, where the interpreter was on the tape, the current loop frames, the 
 input/output strings and so on.
+
+The breakpoint button allows you to select a location in the source where you would like the program to stop if you are
+auto-stepping. This allows you to quickly run through unimportant code while not missing what you intended. To use it, 
+click where you would like the program to stop after you click the button, multiple points can be set. The breakpoints
+appear in red.
 
 In order to implement simple backsteps we save every state of the debugged program. This allows us to also build state
 trees that we can use to more precisely examine what happened in that time frame.
@@ -51,9 +56,9 @@ trees that we can use to more precisely examine what happened in that time frame
 * Visualization of the interpreter running
 * Compilation to Python and C (Including optimizations)
 * Tutorial Interface and step-by-step guide (BF Examples included)
-* Debugging features including breakpoints
+* More Debugging features
 * Add custom BF commands
-* Variable BF Interpreter support
+* Variable BF Interpreter support (default to reference: far-left init tape, 30k cells, etc)
 
 
 ## Information about the Source
