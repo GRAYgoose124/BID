@@ -1,47 +1,34 @@
 # bf to py compiler
 
 
-from enum import Enum
 import re
 
 
-from .c import c_template
-
-
 class BfOptimizingCompiler:
-    utilities = {
-        "runs_re": re.compile(r"(\d+)(.)"),
-        "shorts_re": re.compile(r"([A-Z]{4});"),
-    }
+    def __init__(self, run_macros=None, short_macros=None, transpile_table=None):
+        self.run_macros = run_macros or {}
+        self.short_macros = short_macros or {}
+        self.transpile_table = transpile_table or {}
 
-    shorts = {
-        "CLRC": re.compile(r"(\[-\])"),  # [-]
-        "MFLE": re.compile(r"(\[<\])"),  # [<]
-        "MFRE": re.compile(r"(\[>\])"),  # [>]
-        "PSNC": re.compile(r"(\[\.>\])"),  # [.>]
-        "GSNI": re.compile(r"(,\[\>,\])"),  # ,[>,]
-    }
-    shorts_macros = {
-        "CLRC": "tape[ptr] = 0;",
-        "MFLE": "while (tape[ptr] != 0) {ptr--;}",
-        "MFRE": "while (tape[ptr] != 0) {ptr++;}",
-        "PSNC": "while (tape[ptr] != 0) {putchar(tape[ptr]); ptr += 1;}",
-        "GSNI": "tape[ptr] = getchar(); while (tape[ptr] != 0) {ptr += 1;}",
-    }
+        self.utilities = {
+            "runs_re": re.compile(r"(\d+)(.)"),
+            "shorts_re": re.compile(r"([A-Z]{4});"),
+        }
 
-    runs = {
-        ">": re.compile(r"(>{2,})"),  # >n
-        "<": re.compile(r"(<{2,})"),  # <n
-        "+": re.compile(r"(\+{2,})"),  # +n
-        "-": re.compile(r"(-{2,})"),  # -n
-    }
+        self.shorts = {
+            "CLRC": re.compile(r"(\[-\])"),  # [-]
+            "MFLE": re.compile(r"(\[<\])"),  # [<]
+            "MFRE": re.compile(r"(\[>\])"),  # [>]
+            "PSNC": re.compile(r"(\[\.>\])"),  # [.>]
+            "GSNI": re.compile(r"(,\[\>,\])"),  # ,[>,]
+        }
 
-    runs_macros = {
-        ">": lambda v: f"ptr += {v};",
-        "<": lambda v: f"ptr -= {v};",
-        "+": lambda v: f"tape[ptr] += {v};",
-        "-": lambda v: f"tape[ptr] -= {v};",
-    }
+        self.runs = {
+            ">": re.compile(r"(>{2,})"),  # >n
+            "<": re.compile(r"(<{2,})"),  # <n
+            "+": re.compile(r"(\+{2,})"),  # +n
+            "-": re.compile(r"(-{2,})"),  # -n
+        }
 
     def replace_runs(self, src):
         for ty in self.runs:
@@ -64,22 +51,8 @@ class BfOptimizingCompiler:
         return unspanned
 
     def parse_spanning(self, ir, i, spanning, span):
-        if ir[i] == ">":
-            spanning[span] += "ptr += 1;"
-        elif ir[i] == "<":
-            spanning[span] += "ptr -= 1;"
-        elif ir[i] == "+":
-            spanning[span] += "tape[ptr] += 1;"
-        elif ir[i] == "-":
-            spanning[span] += "tape[ptr] -= 1;"
-        elif ir[i] == ".":
-            spanning[span] += "putchar(tape[ptr]);"
-        elif ir[i] == ",":
-            spanning[span] += "tape[ptr] = getchar();"
-        elif ir[i] == "[":
-            spanning[span] += "while (tape[ptr] != 0) {"
-        elif ir[i] == "]":
-            spanning[span] += "}"
+        if ir[i] in self.transpile_table:
+            spanning[span] += self.transpile_table[ir[i]]
 
     def to_ir(self, src):
         ir = self.replace_shorts(src)
@@ -93,13 +66,13 @@ class BfOptimizingCompiler:
             count, ty = m.groups()
             count = int(count)
             span = m.span()
-            runs_to_replace[span] = self.runs_macros[ty](count)
+            runs_to_replace[span] = self.run_macros[ty](count)
 
         shorts_to_replace = {}
         for m in self.utilities["shorts_re"].finditer(ir):
             span = m.span()
             ty = m.groups()[0]
-            shorts_to_replace[span] = self.shorts_macros[ty]
+            shorts_to_replace[span] = self.short_macros[ty]
 
         # now standard parse the unspanned
         spanned = {**runs_to_replace, **shorts_to_replace}
@@ -148,4 +121,4 @@ class BfOptimizingCompiler:
     def compile(self, src):
         ir = self.to_ir(src)
         code = self.compile_ir(ir)
-        return c_template(self.clean_output(code))
+        return self.clean_output(code)

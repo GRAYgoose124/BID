@@ -1,7 +1,7 @@
 import os
 import subprocess
 
-from .transpiler import BfOptimizer
+from .c import BfToC
 from ..utils import load_bf
 
 
@@ -11,7 +11,7 @@ def main():
     bf_src = load_bf("hello_world")
 
     # test ir optimizer
-    BfO = BfOptimizer()
+    BfO = BfToC()
     with open("output/test_ir.c", "w") as f:
         f.write(BfO.compile(bf_src))
 

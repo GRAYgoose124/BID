@@ -1,3 +1,5 @@
+from .transpiler import BfOptimizingCompiler
+
 c_template = (
     lambda code: f"""#include <stdio.h>
 
@@ -11,8 +13,22 @@ int main() {{
 """
 )
 
+c_shorts_macros = {
+    "CLRC": "tape[ptr] = 0;",
+    "MFLE": "while (tape[ptr] != 0) {ptr--;}",
+    "MFRE": "while (tape[ptr] != 0) {ptr++;}",
+    "PSNC": "while (tape[ptr] != 0) {putchar(tape[ptr]); ptr += 1;}",
+    "GSNI": "tape[ptr] = getchar(); while (tape[ptr] != 0) {ptr += 1;}",
+}
 
-transpile_table_c = {
+c_runs_macros = {
+    ">": lambda v: f"ptr += {v};",
+    "<": lambda v: f"ptr -= {v};",
+    "+": lambda v: f"tape[ptr] += {v};",
+    "-": lambda v: f"tape[ptr] -= {v};",
+}
+
+c_transpile_table = {
     ">": "ptr += 1;",  # ptr++;
     "<": "ptr -= 1;",  # ptr--;
     "+": "tape[ptr] += 1;",  # tape[ptr]++;
@@ -23,9 +39,14 @@ transpile_table_c = {
     "]": "}",
 }
 
-replace_transpile_table_c = {
-    ">": lambda v: "ptr += {v};",
-    "<": lambda v: "ptr -= {v};",
-    "+": lambda v: "tape[ptr] += {v};",
-    "-": lambda v: "tape[ptr] -= {v};",
-}
+
+class BfToC(BfOptimizingCompiler):
+    def __init__(self):
+        super().__init__(
+            run_macros=c_runs_macros,
+            short_macros=c_shorts_macros,
+            transpile_table=c_transpile_table,
+        )
+
+    def compile(self, src):
+        return c_template(super().compile(src))
