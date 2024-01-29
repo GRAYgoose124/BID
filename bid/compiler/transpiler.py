@@ -5,10 +5,17 @@ import re
 
 
 class BfOptimizingCompiler:
-    def __init__(self, run_macros=None, short_macros=None, transpile_table=None):
+    def __init__(
+        self,
+        run_macros=None,
+        short_macros=None,
+        transpile_table=None,
+        compile_template=None,
+    ):
         self.run_macros = run_macros or {}
         self.short_macros = short_macros or {}
         self.transpile_table = transpile_table or {}
+        self.compile_template = compile_template or (lambda x: f"{x}")
 
         self.utilities = {
             "runs_re": re.compile(r"(\d+)(.)"),
@@ -65,7 +72,7 @@ class BfOptimizingCompiler:
 
     def parse_spanning(self, ir, i, spanning, span):
         if ir[i] in self.transpile_table:
-            spanning[span] += self.transpile_table[ir[i]]
+            spanning[span].append(self.transpile_table[ir[i]])
 
     def to_ir(self, src):
         ir = self.replace_shorts(src)
@@ -94,7 +101,7 @@ class BfOptimizingCompiler:
         # now standard parse the unspanned
         spanned = {**runs_to_replace, **shorts_to_replace}
         unspanned = {
-            span: "" for span in self.get_unspanned(spanned, total_length=len(ir))
+            span: [] for span in self.get_unspanned(spanned, total_length=len(ir))
         }
         for span in unspanned:
             for i in range(span[0], span[1]):
@@ -103,11 +110,14 @@ class BfOptimizingCompiler:
         # finally, build the code from the spanning
         spanning = {**unspanned, **spanned}
         sorted_spanning = sorted(spanning.keys())
-        code = ""
+        codelines = []
         for span in sorted_spanning:
-            code += f"{spanning[span]}"
+            if isinstance(spanning[span], list):
+                codelines.extend(spanning[span])
+            else:
+                codelines.append(spanning[span])
 
-        return code
+        return codelines
 
     def clean_output(self, code):
         raise NotImplementedError
@@ -115,4 +125,6 @@ class BfOptimizingCompiler:
     def compile(self, src, runs_re=True, shorts_re=True):
         ir = self.to_ir(src)
         code = self.compile_ir(ir, runs_re, shorts_re)
-        return self.clean_output(code)
+        code = self.clean_output(code)
+        code = self.compile_template(code)
+        return code

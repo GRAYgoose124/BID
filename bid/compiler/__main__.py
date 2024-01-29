@@ -4,6 +4,8 @@ import argparse
 
 from .languages.c import BfToC
 from .languages.asm import BfToNASM
+from .languages.py import BfToPy
+
 from ..utils import load_bf
 
 
@@ -48,8 +50,11 @@ def main():
                 BfO = BfToC()
             elif language == "asm":
                 BfO = BfToNASM()
+            elif language == "py":
+                BfO = BfToPy()
             else:
-                raise NotImplementedError("language not implemented")
+                print("Invalid language")
+                return
 
             with open(output_file, "w") as f:
                 f.write(BfO.compile(bf_src))
@@ -62,8 +67,11 @@ def main():
                     ["nasm", "-f", "elf64", output_file, "-o", f"{compiled_file}.o"]
                 )
                 subprocess.run(["ld", f"{compiled_file}.o", "-o", compiled_file])
+            elif language == "py":
+                compiled_file = output_file
+                subprocess.run(["chmod", "+x", compiled_file])
 
-        subprocess.run([compiled_file])
+            subprocess.run([compiled_file])
         print(f"Output: {output_file}", f"Compiled: {compiled_file}", sep="\n")
     else:
         print("Invalid language")

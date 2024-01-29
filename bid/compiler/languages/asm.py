@@ -11,8 +11,8 @@ class BfToNASM(BfOptimizingCompiler):
             "<": "dec ebx ; Move left",
             "+": "inc byte [ebx] ; Increment",
             "-": "dec byte [ebx] ; Decrement",
-            ".": self._output_command(),
-            ",": self._input_command(),
+            ".": self._io_command(input=False),
+            ",": self._io_command(input=True),
             "[": self._loop_start_command(),
             "]": self._loop_end_command(),
         }
@@ -28,26 +28,16 @@ class BfToNASM(BfOptimizingCompiler):
         return self.nasm_template(compiled_code)
 
     @staticmethod
-    def _output_command():
+    def _io_command(input=True):
         return (
-            "mov eax, 4 ; syscall number for write\n"
-            "mov ecx, ebx ; pointer to data\n"
-            "mov edx, 1 ; number of bytes to write\n"
-            "int 0x80 ; call kernel"
-        )
-
-    @staticmethod
-    def _input_command():
-        return (
-            "mov eax, 3 ; syscall number for read\n"
+            f"mov eax, {3 if input else 4} ; syscall number for {input}\n"
             "mov ecx, ebx ; pointer to data\n"
             "mov edx, 1 ; number of bytes to read\n"
-            "int 0x80 ; call kernel"
+            "int 0x80 ; call kernel\n"
         )
 
     def _loop_start_command(self):
         self.loop_id += 1
-
         out = f"loop_start_{self.loop_id}:\ncmp byte [ebx], 0\nje loop_end_{self.loop_id}\n; Loop start"
         return out
 
@@ -72,7 +62,7 @@ class BfToNASM(BfOptimizingCompiler):
             "int 0x80 ; call kernel\n"
         )
 
-    def clean_output(self, code):
-        # remove all comments
+    def clean_output(self, codelines):
+        code = "\n".join(codelines)
         code = re.sub(r";.*", "", code)
         return code

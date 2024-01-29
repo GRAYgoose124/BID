@@ -47,12 +47,11 @@ class BfToC(BfOptimizingCompiler):
             run_macros=c_runs_macros,
             short_macros=c_shorts_macros,
             transpile_table=c_transpile_table,
+            compile_template=c_template,
         )
 
-    def compile(self, src):
-        return c_template(super().compile(src))
-
-    def clean_output(self, code):
+    def clean_output(self, codelines):
+        code = "\n".join(codelines)
         code = re.sub(r"\s", "", code)
         # add \n after every ;{}
         code = re.sub(r";", ";\n", code)
