@@ -14,13 +14,10 @@
 #   You should have received a copy of the GNU General Public License
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>
 
-import tkinter as tk
 
-from app import BID
+from .app import BID
 
+main = lambda: BID().mainloop()
 
-if __name__ == '__main__':
-    root = tk.Tk()
-    app = BID(master=root)
-    app.mainloop()
-
+if __name__ == "__main__":
+    main()

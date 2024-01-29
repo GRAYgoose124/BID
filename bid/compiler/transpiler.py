@@ -5,32 +5,7 @@ import re
 import subprocess
 
 
-transpile_globals = {
-    "ptr": "0",
-    "tape": "[0] * 30000",
-}
-
-transpile_table_py = {
-    ">": "ptr += 1",
-    "<": "ptr -= 1",
-    "+": "tape[ptr] += 1",
-    "-": "tape[ptr] -= 1",
-    ".": "print(chr(tape[ptr]), end='')",
-    ",": "tape[ptr] = ord(sys.stdin.read(1))",
-    "[": "while tape[ptr] != 0:",
-    "]": "",
-}
-
-transpile_table_c = {
-    ">": "ptr += 1;",  # ptr++;
-    "<": "ptr -= 1;",  # ptr--;
-    "+": "tape[ptr] += 1;",  # tape[ptr]++;
-    "-": "tape[ptr] -= 1;",  # tape[ptr]--;
-    ".": "putchar(tape[ptr]);",
-    ",": "tape[ptr] = getchar();",
-    "[": "while (tape[ptr] != 0) {",
-    "]": "}",
-}
+from .c import c_template
 
 
 class BfFuncLib:
@@ -38,21 +13,14 @@ class BfFuncLib:
     MOVE_TO_FIRST_L_EMPTY = "[<]"
     MOVE_TO_FIRST_R_EMPTY = "[>]"
     PRINT_SEQ_NONZERO_CELLS = "[.>]"
+    GET_SEQ_NONZERO_INPUT = ",[>,]"
+    PTR_INC_RUN = ">n"
+    PTR_DEC_RUN = "<n"
+    CELL_INC_RUN = "+n"
+    CELL_DEC_RUN = "-n"
 
-
-c_template = (
-    lambda code: f"""
-#include <stdio.h>
-
-unsigned char tape[30000] = {{0}};
-unsigned int ptr = 0;
-
-int main() {{
-{code}
-\treturn 0;
-}}
-"""
-)
+    def to_ir(self, src):
+        pass
 
 
 class BfPyTranspiler:

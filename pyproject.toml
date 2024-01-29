@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "BID"
+version = "0.2.0"
+description = "Brainfuck Interactive Debugger"
+authors = [{name = "Grayson Miller", email = "grayson.miller124@gmail.com"}]
+license = { text = "GPLv3" }
+classifiers = [
+    "Intended Audience :: Developers",
+    "Topic :: Utilities",
+]
+readme = "README.md"
+requires-python = ">=3.6"
+
+[project.urls]
+homepage = "https://github.com/GRAYgoose124/BID"
+
+
+[tool.setuptools.packages]
+find = {}
+
+[project.scripts]
+bid = "bid.__main__:main"
+bidc = "bid.compiler.__main__:main"
+
+[project.optional-dependencies]
