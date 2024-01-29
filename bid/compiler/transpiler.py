@@ -42,11 +42,24 @@ class BfOptimizingCompiler:
 
         return src
 
-    def get_unspanned(self, to_replaces):
+    def get_unspanned(self, to_replaces, total_length):
+        if not to_replaces:
+            # If there are no spans, return a span covering the whole string
+            return [(0, total_length)]
+
         spans = sorted(to_replaces.keys())
         unspanned = []
+        # If there is a gap at the beginning
+        if spans[0][0] > 0:
+            unspanned.append((0, spans[0][0]))
+
         for i in range(len(spans) - 1):
+            # Append the gap between two spans
             unspanned.append((spans[i][1], spans[i + 1][0]))
+
+        # If there is a gap at the end
+        if spans[-1][1] < total_length:
+            unspanned.append((spans[-1][1], total_length))
 
         return unspanned
 
@@ -59,24 +72,30 @@ class BfOptimizingCompiler:
         ir = self.replace_runs(ir)
         return ir
 
-    def compile_ir(self, ir):
+    def compile_ir(self, ir, runs_re=True, shorts_re=True):
         # first, replace all the runs and shorts
         runs_to_replace = {}
-        for m in self.utilities["runs_re"].finditer(ir):
-            count, ty = m.groups()
-            count = int(count)
-            span = m.span()
-            runs_to_replace[span] = self.run_macros[ty](count)
+
+        if runs_re:
+            for m in self.utilities["runs_re"].finditer(ir):
+                count, ty = m.groups()
+                count = int(count)
+                span = m.span()
+                runs_to_replace[span] = self.run_macros[ty](count)
 
         shorts_to_replace = {}
-        for m in self.utilities["shorts_re"].finditer(ir):
-            span = m.span()
-            ty = m.groups()[0]
-            shorts_to_replace[span] = self.short_macros[ty]
+
+        if shorts_re:
+            for m in self.utilities["shorts_re"].finditer(ir):
+                span = m.span()
+                ty = m.groups()[0]
+                shorts_to_replace[span] = self.short_macros[ty]
 
         # now standard parse the unspanned
         spanned = {**runs_to_replace, **shorts_to_replace}
-        unspanned = {span: "" for span in self.get_unspanned(spanned)}
+        unspanned = {
+            span: "" for span in self.get_unspanned(spanned, total_length=len(ir))
+        }
         for span in unspanned:
             for i in range(span[0], span[1]):
                 self.parse_spanning(ir, i, unspanned, span)
@@ -91,34 +110,9 @@ class BfOptimizingCompiler:
         return code
 
     def clean_output(self, code):
-        code = re.sub(r"\s", "", code)
-        # add \n after every ;{}
-        new_code = re.sub(r";", ";\n", code)
-        new_code = re.sub(r"{", "{\n", new_code)
-        new_code = re.sub(r"}", "}\n", new_code)
+        raise NotImplementedError
 
-        indent = 0
-        idx = 0
-        while idx < len(new_code):
-            if new_code[idx] == "{":
-                indent += 1
-            elif new_code[idx] == "}":
-                indent -= 1
-
-            if new_code[idx] == "\n":
-                insert_position = idx + 1
-                new_code = (
-                    new_code[:insert_position]
-                    + ("\t" * indent)
-                    + new_code[insert_position:]
-                )
-                idx += indent
-
-            idx += 1
-
-        return new_code
-
-    def compile(self, src):
+    def compile(self, src, runs_re=True, shorts_re=True):
         ir = self.to_ir(src)
-        code = self.compile_ir(ir)
+        code = self.compile_ir(ir, runs_re, shorts_re)
         return self.clean_output(code)

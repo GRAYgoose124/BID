@@ -1,4 +1,5 @@
-from .transpiler import BfOptimizingCompiler
+import re
+from ..transpiler import BfOptimizingCompiler
 
 c_template = (
     lambda code: f"""#include <stdio.h>
@@ -50,3 +51,27 @@ class BfToC(BfOptimizingCompiler):
 
     def compile(self, src):
         return c_template(super().compile(src))
+
+    def clean_output(self, code):
+        code = re.sub(r"\s", "", code)
+        # add \n after every ;{}
+        code = re.sub(r";", ";\n", code)
+        code = re.sub(r"{", "{\n", code)
+        code = re.sub(r"}", "}\n", code)
+
+        indent = 0
+        idx = 0
+        while idx < len(code):
+            if code[idx] == "{":
+                indent += 1
+            elif code[idx] == "}":
+                indent -= 1
+
+            if code[idx] == "\n":
+                insert_position = idx + 1
+                code = code[:insert_position] + ("\t" * indent) + code[insert_position:]
+                idx += indent
+
+            idx += 1
+
+        return code
