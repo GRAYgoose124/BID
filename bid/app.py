@@ -147,7 +147,7 @@ class BID(tk.Frame):
         self.debug_btn.grid(row=0, column=0, padx=(5, 20), pady=5)
         self.auto_step_backward_btn = tk.Button(
             self.debug_button_frame,
-            text="←",
+            text="<-",
             command=lambda: self.bf_auto_step("backward"),
         )
         self.auto_step_backward_btn.grid(
@@ -155,20 +155,20 @@ class BID(tk.Frame):
             column=1,
         )
         self.step_backward_btn = tk.Button(
-            self.debug_button_frame, text="◄", command=self.bf_step_backward
+            self.debug_button_frame, text="<", command=self.bf_step_backward
         )
         self.step_backward_btn.grid(row=0, column=2)
         self.pause_btn = tk.Button(
-            self.debug_button_frame, text="●", command=self.toggle_pause
+            self.debug_button_frame, text="o", command=self.toggle_pause
         )
         self.pause_btn.grid(row=0, column=3)
         self.step_forward_btn = tk.Button(
-            self.debug_button_frame, text="►", command=self.bf_step_forward
+            self.debug_button_frame, text=">", command=self.bf_step_forward
         )
         self.step_forward_btn.grid(row=0, column=4)
         self.auto_step_forward_btn = tk.Button(
             self.debug_button_frame,
-            text="→",
+            text="->",
             command=lambda: self.bf_auto_step("forward"),
         )
         self.auto_step_forward_btn.grid(row=0, column=5, padx=(0, 5))

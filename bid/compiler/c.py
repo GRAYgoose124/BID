@@ -1,6 +1,5 @@
 c_template = (
-    lambda code: f"""
-#include <stdio.h>
+    lambda code: f"""#include <stdio.h>
 
 unsigned char tape[30000] = {{0}};
 unsigned int ptr = 0;
@@ -22,4 +21,11 @@ transpile_table_c = {
     ",": "tape[ptr] = getchar();",
     "[": "while (tape[ptr] != 0) {",
     "]": "}",
+}
+
+replace_transpile_table_c = {
+    ">": lambda v: "ptr += {v};",
+    "<": lambda v: "ptr -= {v};",
+    "+": lambda v: "tape[ptr] += {v};",
+    "-": lambda v: "tape[ptr] -= {v};",
 }
