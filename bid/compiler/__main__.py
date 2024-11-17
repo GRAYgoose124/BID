@@ -26,9 +26,9 @@ def argparser():
         action="store_true",
     )
     parser.add_argument(
-        "-cl",
-        "--clean",
-        help="clean output",
+        "-nc",
+        "--no-clean",
+        help="do not clean output",
         default=False,
         action="store_true",
     )
@@ -73,7 +73,7 @@ def main():
                 return
 
             with open(output_file, "w") as f:
-                compiled = BfO.compile(bf_src, args.clean)
+                compiled = BfO.compile(bf_src, not args.no_clean)
                 f.write(compiled)
 
         if args.run:

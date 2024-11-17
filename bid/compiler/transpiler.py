@@ -153,7 +153,9 @@ class BfOptimizingCompiler:
         log.debug(f"Post processed code 2: {code}")
         if clean:
             code = self.clean_output(code)
-            log.debug(f"Cleaned code: {code}")
+        else:
+            code = "\n".join(code)
+        log.debug(f"Final code: {code}")
             
         code = self.compile_template(code)
         #log.debug(f"With template: {code}")
