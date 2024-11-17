@@ -83,7 +83,7 @@ class BfOptimizingCompiler:
         # first, replace all the runs and shorts
         runs_to_replace = {}
 
-        if runs_re:
+        if runs_re and len(self.run_macros):
             for m in self.utilities["runs_re"].finditer(ir):
                 count, ty = m.groups()
                 count = int(count)
@@ -92,7 +92,7 @@ class BfOptimizingCompiler:
 
         shorts_to_replace = {}
 
-        if shorts_re:
+        if shorts_re and len(self.short_macros):
             for m in self.utilities["shorts_re"].finditer(ir):
                 span = m.span()
                 ty = m.groups()[0]
@@ -119,12 +119,19 @@ class BfOptimizingCompiler:
 
         return codelines
 
+    def _internal_post_process(self, code):
+        for i, line in enumerate(code):
+            # some lines are actually methods, so we need to call them now to generate the code
+            if callable(line):
+                code[i] = line()
+                
     def clean_output(self, code):
         raise NotImplementedError
 
     def compile(self, src, runs_re=True, shorts_re=True):
         ir = self.to_ir(src)
         code = self.compile_ir(ir, runs_re, shorts_re)
+        self._internal_post_process(code)
         code = self.clean_output(code)
         code = self.compile_template(code)
         return code

@@ -68,13 +68,7 @@ def main():
 
             with open(output_file, "w") as f:
                 compiled = BfO.compile(bf_src)
-                if args.clean:
-                    cleaned = BfO.clean_output(compiled)
-                    print(f"Compiled: {cleaned}")
-                    f.write(cleaned)
-                else:
-                    print(f"Compiled: {compiled}")
-                    f.write(compiled)
+                f.write(compiled)
 
         if args.run:
             if language == "c":
