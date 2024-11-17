@@ -83,24 +83,29 @@ class BrainfuckInterpreter:
                     self.tape_size += 1
                 self.tape_pos -= 1
 
-            elif self.source_string[self.i] == ']':
-                if self.tape[self.tape_pos] != 0:
-                    self.i = self.frames[-1]
-                else:
-                    self.frames.pop()
-
             elif self.source_string[self.i] == '[':
                 if self.tape[self.tape_pos] != 0:
                     self.frames.append(self.i)
                 else:
-                    brace_counter = 0
-                    while self.source_string[self.i] != ']' and brace_counter >= 0:
+                    brace_counter = 1  # Start at 1 since we're on a '['
+                    self.i += 1  # Move past current '['
+                    while self.i < len(self.source_string) and brace_counter > 0:
                         if self.source_string[self.i] == '[':
                             brace_counter += 1
-                        if self.source_string[self.i] == ']':
+                        elif self.source_string[self.i] == ']':
                             brace_counter -= 1
                         self.i += 1
-                    self.i += 1
+                    if brace_counter > 0:
+                        raise SyntaxError("Unmatched '['")
+                    self.i -= 1  # Step back since main loop will increment
+
+            elif self.source_string[self.i] == ']':
+                if not self.frames:  # Check for unmatched ']'
+                    raise SyntaxError("Unmatched ']'")
+                if self.tape[self.tape_pos] != 0:
+                    self.i = self.frames[-1]
+                else:
+                    self.frames.pop()
 
             elif self.source_string[self.i] == ',':
                 if self.input_string != "":
@@ -112,6 +117,7 @@ class BrainfuckInterpreter:
 
             self.i += 1
         else:
+            self.i -= 1
             self.running = False
 
     def save_state(self):

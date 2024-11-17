@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 import subprocess
 import argparse
 
@@ -25,6 +26,13 @@ def argparser():
         action="store_true",
     )
     parser.add_argument(
+        "-cl",
+        "--clean",
+        help="clean output",
+        default=False,
+        action="store_true",
+    )
+    parser.add_argument(
         "-r", "--run", help="run executable", default=False, action="store_true"
     )
     return parser.parse_args()
@@ -32,7 +40,9 @@ def argparser():
 
 def main():
     args = argparser()
-    possible_name, bf_src = load_bf(args.input, args.programs_dir)
+    filepath = Path(args.input)
+    bf_src = load_bf(filepath)
+    name = filepath.name
     output_dir = args.output
     language = args.language
     print(f"Input: {bf_src}")
@@ -41,7 +51,7 @@ def main():
         extension = args.language
         build_dir = os.path.join(output_dir, "build")
         os.makedirs(build_dir, exist_ok=True)
-        output_name = possible_name or f"output_{language}_{len(bf_src)}"
+        output_name = name or f"output_{language}_{len(bf_src)}"
         output_file = os.path.join(output_dir, f"{output_name}.{extension}")
         compiled_file = os.path.join(build_dir, f"{output_name}_{language}")
 
@@ -57,7 +67,14 @@ def main():
                 return
 
             with open(output_file, "w") as f:
-                f.write(BfO.compile(bf_src))
+                compiled = BfO.compile(bf_src)
+                if args.clean:
+                    cleaned = BfO.clean_output(compiled)
+                    print(f"Compiled: {cleaned}")
+                    f.write(cleaned)
+                else:
+                    print(f"Compiled: {compiled}")
+                    f.write(compiled)
 
         if args.run:
             if language == "c":
@@ -72,7 +89,7 @@ def main():
                 subprocess.run(["chmod", "+x", compiled_file])
 
             subprocess.run([compiled_file])
-        print(f"Output: {output_file}", f"Compiled: {compiled_file}", sep="\n")
+            print(f"Ran: {compiled_file}")
     else:
         print("Invalid language")
 

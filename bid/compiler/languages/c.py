@@ -53,11 +53,11 @@ class BfToC(BfOptimizingCompiler):
     def clean_output(self, codelines):
         code = "\n".join(codelines)
         code = re.sub(r"\s", "", code)
-        # add \n after every ;{}
+        # add \n after every ;{} and include statemnts if they don't have a newline
         code = re.sub(r";", ";\n", code)
         code = re.sub(r"{", "{\n", code)
         code = re.sub(r"}", "}\n", code)
-
+        code = re.sub(r"#include.*?", lambda m: f"#include{m.group(0)}\n", code)
         indent = 0
         idx = 0
         while idx < len(code):
