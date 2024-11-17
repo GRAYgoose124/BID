@@ -14,6 +14,11 @@ For Debian-based distributions you can install python3 and tkinter in this fashi
 
 `sudo apt-get install python3 python3-tk`
 
+```bash
+python -m bid # main debugging IDE
+python -m bid.compiler # -h, for transpiling to asm/c/py
+python -m bid.interpreter # IDE backend
+```
 
 ## About the IDE
 ### The Debugger

@@ -2,7 +2,9 @@
 
 
 import re
+import logging
 
+log = logging.getLogger(__name__)
 
 class BfOptimizingCompiler:
     def __init__(
@@ -11,17 +13,19 @@ class BfOptimizingCompiler:
         short_macros=None,
         transpile_table=None,
         compile_template=None,
+        data_table=None,
     ):
         self.run_macros = run_macros or {}
         self.short_macros = short_macros or {}
         self.transpile_table = transpile_table or {}
         self.compile_template = compile_template or (lambda x: f"{x}")
+        self.data_table = data_table or {}
 
         self.utilities = {
             "runs_re": re.compile(r"(\d+)(.)"),
             "shorts_re": re.compile(r"([A-Z]{4});"),
         }
-
+        
         self.shorts = {
             "CLRC": re.compile(r"(\[-\])"),  # [-]
             "MFLE": re.compile(r"(\[<\])"),  # [<]
@@ -36,6 +40,7 @@ class BfOptimizingCompiler:
             "+": re.compile(r"(\+{2,})"),  # +n
             "-": re.compile(r"(-{2,})"),  # -n
         }
+        
 
     def replace_runs(self, src):
         for ty in self.runs:
@@ -83,7 +88,7 @@ class BfOptimizingCompiler:
         # first, replace all the runs and shorts
         runs_to_replace = {}
 
-        if runs_re:
+        if runs_re and len(self.run_macros):
             for m in self.utilities["runs_re"].finditer(ir):
                 count, ty = m.groups()
                 count = int(count)
@@ -92,7 +97,7 @@ class BfOptimizingCompiler:
 
         shorts_to_replace = {}
 
-        if shorts_re:
+        if shorts_re and len(self.short_macros):
             for m in self.utilities["shorts_re"].finditer(ir):
                 span = m.span()
                 ty = m.groups()[0]
@@ -118,13 +123,28 @@ class BfOptimizingCompiler:
                 codelines.append(spanning[span])
 
         return codelines
-
+    
+    def _internal_post_process(self, code):
+        for i, line in enumerate(code):
+            # some lines are actually methods, so we need to call them now to generate the code
+            if callable(line):
+                log.debug(f"Calling {line}")
+                code[i] = line()
+                log.debug(f"Now: {code[i]=}")
+                
     def clean_output(self, code):
         raise NotImplementedError
+    
+    def post_process(self, code):
+        return code
 
-    def compile(self, src, runs_re=True, shorts_re=True):
+    def compile(self, src, runs_re=True, shorts_re=True, clean=True):
         ir = self.to_ir(src)
         code = self.compile_ir(ir, runs_re, shorts_re)
-        code = self.clean_output(code)
+        self._internal_post_process(code)
+        code = self.post_process(code)
+
+        if clean:
+            code = self.clean_output(code)
         code = self.compile_template(code)
         return code

@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 import subprocess
 import argparse
-
+import logging
 from .languages.c import BfToC
 from .languages.asm import BfToNASM
 from .languages.py import BfToPy
@@ -35,18 +35,24 @@ def argparser():
     parser.add_argument(
         "-r", "--run", help="run executable", default=False, action="store_true"
     )
+    parser.add_argument(
+        "-v", "--verbose", help="verbose output", default=False, action="store_true"
+    )
     return parser.parse_args()
 
 
 def main():
     args = argparser()
+    logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO)
+    log = logging.getLogger(__name__)
+    
     filepath = Path(args.input)
     bf_src = load_bf(filepath)
     name = filepath.name
     output_dir = args.output
     language = args.language
-    print(f"Input: {bf_src}")
-
+    
+    log.debug(f"Input: {bf_src}")
     if args.language in ["c", "py", "asm"]:
         extension = args.language
         build_dir = os.path.join(output_dir, "build")
@@ -67,14 +73,8 @@ def main():
                 return
 
             with open(output_file, "w") as f:
-                compiled = BfO.compile(bf_src)
-                if args.clean:
-                    cleaned = BfO.clean_output(compiled)
-                    print(f"Compiled: {cleaned}")
-                    f.write(cleaned)
-                else:
-                    print(f"Compiled: {compiled}")
-                    f.write(compiled)
+                compiled = BfO.compile(bf_src, args.clean)
+                f.write(compiled)
 
         if args.run:
             if language == "c":

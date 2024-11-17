@@ -4,3 +4,6 @@ Pop from empty list after breakpoint debug running forward/back.
 When you run a program that does not end, the program freezes, or the run button locks up.
 When you start a program with a brace, it freezes BID.
 When you have adjacent [] and the current cell is 0, it freezes.
+
+ASM:
+loop labels are not unique

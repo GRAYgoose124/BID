@@ -19,7 +19,8 @@ class BrainfuckInterpreter:
         self.tape_size = 128
         self.max_cell_value = 127
         self.min_cell_value = -127
-
+        self.stop_on_eot = False
+        self.max_eots = 1e4
         self.update(source_string, input_string, debug)
 
     def update(self, source_string, input_string=None, debug=False):
@@ -49,7 +50,7 @@ class BrainfuckInterpreter:
             print("No source supplied.")
         else:
             try:
-                while self.i < len(self.source_string):
+                while self.running:
                     self.step()
                 print(self.output_string)
             except RecursionError as e:
@@ -58,7 +59,8 @@ class BrainfuckInterpreter:
         self.running = False
 
     def step(self):
-        if self.i < len(self.source_string):
+        if self.i >= 0 and self.i < len(self.source_string):
+            self.consecutive_eots = 0
             if self.source_string[self.i] == '+':
                 if self.tape[self.tape_pos] <= self.max_cell_value:
                     self.tape[self.tape_pos] += 1
@@ -117,8 +119,12 @@ class BrainfuckInterpreter:
 
             self.i += 1
         else:
-            self.i -= 1
-            self.running = False
+            if self.stop_on_eot:
+                self.running = False
+            else:
+                self.consecutive_eots += 1
+                if self.consecutive_eots > self.max_eots:
+                    raise RecursionError(f"Hit boundary of tape {self.max_eots} times, we may be stuck in an infinite loop.")
 
     def save_state(self):
         return {"tape": self.tape.copy(),
@@ -135,3 +141,13 @@ class BrainfuckInterpreter:
         self.i = state["i"]
         self.output_string = state["output_string"]
         self.input_string = state["input_string"]
+
+
+if __name__ == "__main__":
+    import argparse
+    argparser = argparse.ArgumentParser()
+    argparser.add_argument("source", help="source code")
+    args = argparser.parse_args()
+    
+    interpreter = BrainfuckInterpreter(args.source)
+    interpreter.run()
