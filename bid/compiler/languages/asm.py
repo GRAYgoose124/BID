@@ -50,26 +50,29 @@ class BfToNASM(BfOptimizingCompiler):
         )
 
     def _loop_start_command(self):
-        self.data_table["current_loop"] += 1
         loop_id = self.data_table["current_loop"]
         self.data_table["loop_stack"].append(loop_id)
         
-        return (
+        command = (
             f"loop_start_{loop_id}:\n"
             f"cmp byte [ebx], 0\n"
             f"je loop_end_{loop_id}\n"
         )
+        self.data_table["current_loop"] += 1
+        return command
 
     def _loop_end_command(self):
         if not self.data_table["loop_stack"]:
             raise SyntaxError("Unmatched ']'")
             
-        loop_id = self.data_table["loop_stack"].pop()
+        loop_id = self.data_table["current_loop"]
         
-        return (
+        command = (
             f"jmp loop_start_{loop_id}\n"
             f"loop_end_{loop_id}:\n"
         )
+        self.data_table["current_loop"] -= 1
+        return command
 
     def clean_output(self, codelines):
         code = "\n".join(codelines)

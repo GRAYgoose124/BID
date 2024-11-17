@@ -43,15 +43,17 @@ class BfOptimizingCompiler:
         
 
     def replace_runs(self, src):
+        log.debug(f"Replacing runs: {src}")
         for ty in self.runs:
             src = self.runs[ty].sub(lambda x: f"{len(x.group(1))}{ty}", src)
-
+        log.debug(f"Replaced runs: {src}")
         return src
 
     def replace_shorts(self, src):
+        log.debug(f"Replacing shorts: {src}")
         for ty in self.shorts:
             src = self.shorts[ty].sub(lambda x: f"{ty};", src)
-
+        log.debug(f"Replaced shorts: {src}")
         return src
 
     def get_unspanned(self, to_replaces, total_length):
@@ -87,7 +89,6 @@ class BfOptimizingCompiler:
     def compile_ir(self, ir, runs_re=True, shorts_re=True):
         # first, replace all the runs and shorts
         runs_to_replace = {}
-
         if runs_re and len(self.run_macros):
             for m in self.utilities["runs_re"].finditer(ir):
                 count, ty = m.groups()
@@ -96,13 +97,15 @@ class BfOptimizingCompiler:
                 runs_to_replace[span] = self.run_macros[ty](count)
 
         shorts_to_replace = {}
-
         if shorts_re and len(self.short_macros):
             for m in self.utilities["shorts_re"].finditer(ir):
                 span = m.span()
                 ty = m.groups()[0]
                 shorts_to_replace[span] = self.short_macros[ty]
 
+        log.debug(f"Runs to replace: {runs_to_replace}")
+        log.debug(f"Shorts to replace: {shorts_to_replace}")
+        
         # now standard parse the unspanned
         spanned = {**runs_to_replace, **shorts_to_replace}
         unspanned = {
@@ -139,12 +142,19 @@ class BfOptimizingCompiler:
         return code
 
     def compile(self, src, runs_re=True, shorts_re=True, clean=True):
+        log.debug(f"Transpiling: {src}")
         ir = self.to_ir(src)
+        log.debug(f"IR: {ir}")
         code = self.compile_ir(ir, runs_re, shorts_re)
+        log.debug(f"Code: {code}")
         self._internal_post_process(code)
+        log.debug(f"Post processed code: {code}")
         code = self.post_process(code)
-
+        log.debug(f"Post processed code 2: {code}")
         if clean:
             code = self.clean_output(code)
+            log.debug(f"Cleaned code: {code}")
+            
         code = self.compile_template(code)
+        #log.debug(f"With template: {code}")
         return code
