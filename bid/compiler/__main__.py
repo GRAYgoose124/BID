@@ -6,6 +6,7 @@ import logging
 from .languages.c import BfToC
 from .languages.asm import BfToNASM
 from .languages.py import BfToPy
+from .languages.optimized_c import BfToOptimizedC
 
 from ..utils import load_bf
 
@@ -53,8 +54,9 @@ def main():
     language = args.language
     
     log.debug(f"Input: {bf_src}")
-    if args.language in ["c", "py", "asm"]:
-        extension = args.language
+    if args.language in ["c", "c-opt", "py", "asm"]:
+        # Map c-opt to c extension but use optimized compiler
+        extension = "c" if args.language == "c-opt" else args.language
         build_dir = os.path.join(output_dir, "build")
         os.makedirs(build_dir, exist_ok=True)
         output_name = name or f"output_{language}_{len(bf_src)}"
@@ -64,21 +66,26 @@ def main():
         if args.compile or args.run:
             if language == "c":
                 BfO = BfToC()
+                compiled = BfO.compile(bf_src, not args.no_clean)
+            elif language == "c-opt":
+                BfO = BfToOptimizedC()
+                compiled = BfO.compile(bf_src)
             elif language == "asm":
                 BfO = BfToNASM()
+                compiled = BfO.compile(bf_src, not args.no_clean)
             elif language == "py":
                 BfO = BfToPy()
+                compiled = BfO.compile(bf_src, not args.no_clean)
             else:
                 print("Invalid language")
                 return
 
             with open(output_file, "w") as f:
-                compiled = BfO.compile(bf_src, not args.no_clean)
                 f.write(compiled)
 
         if args.run:
-            if language == "c":
-                subprocess.run(["gcc", output_file, "-o", compiled_file])
+            if language in ["c", "c-opt"]:
+                subprocess.run(["gcc", "-O3", output_file, "-o", compiled_file])
             elif language == "asm":
                 subprocess.run(
                     ["nasm", "-f", "elf64", output_file, "-o", f"{compiled_file}.o"]

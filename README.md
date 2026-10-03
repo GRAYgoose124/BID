@@ -20,6 +20,25 @@ python -m bid.compiler # -h, for transpiling to asm/c/py
 python -m bid.interpreter # IDE backend
 ```
 
+### Compiler Usage
+
+The compiler supports multiple backends with optimization:
+
+```bash
+# Optimized C compiler (recommended)
+python -m bid.compiler -i programs/mandelbrot.bf -o output -l c-opt -c
+
+# Compile and run in one step
+python -m bid.compiler -i programs/hello_world.bf -l c-opt -r
+
+# Legacy unoptimized backends
+python -m bid.compiler -i program.bf -l c    # Naive C transpiler
+python -m bid.compiler -i program.bf -l asm  # x86-64 assembly
+python -m bid.compiler -i program.bf -l py   # Python
+```
+
+See [OPTIMIZATION_REPORT.md](docs/OPTIMIZATION_REPORT.md) for details on compiler optimizations and performance benchmarks.
+
 ## About the IDE
 ### The Debugger
 The debugger has the basic functionality of stepping forwards and backwards as well as auto-stepping. 
