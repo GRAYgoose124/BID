@@ -33,25 +33,27 @@ class BfToOptimizedC:
         """Generate C code for a single IR operation"""
         if op.op_type == OpType.ADD:
             if op.arg2 != 0:  # Has offset
-                return f"tape[ptr + ({op.arg2})] += {op.arg1};"
+                return f"tape[ptr + {op.arg2}] += {op.arg1};"
             return f"tape[ptr] += {op.arg1};"
         
         elif op.op_type == OpType.PTR:
+            if op.arg1 < 0:
+                return f"ptr -= {-op.arg1};"
             return f"ptr += {op.arg1};"
         
         elif op.op_type == OpType.SET:
             if op.arg2 != 0:  # Has offset
-                return f"tape[ptr + ({op.arg2})] = {op.arg1};"
+                return f"tape[ptr + {op.arg2}] = {op.arg1};"
             return f"tape[ptr] = {op.arg1};"
         
         elif op.op_type == OpType.OUT:
             if op.arg2 != 0:  # Has offset
-                return f"putchar(tape[ptr + ({op.arg2})]);"
+                return f"putchar(tape[ptr + {op.arg2}]);"
             return "putchar(tape[ptr]);"
         
         elif op.op_type == OpType.IN:
             if op.arg2 != 0:  # Has offset
-                return f"tape[ptr + ({op.arg2})] = getchar();"
+                return f"tape[ptr + {op.arg2}] = getchar();"
             return "tape[ptr] = getchar();"
         
         elif op.op_type == OpType.LOOP_START:
@@ -69,10 +71,11 @@ class BfToOptimizedC:
         
         elif op.op_type == OpType.MUL_ADD:
             # Multiply and add operation
+            offset = f" + {op.arg1}" if op.arg1 > 0 else f" - {-op.arg1}" if op.arg1 < 0 else ""
             if op.arg2 == 1:
-                return f"tape[ptr + ({op.arg1})] += tape[ptr];"
+                return f"tape[ptr{offset}] += tape[ptr];"
             else:
-                return f"tape[ptr + ({op.arg1})] += tape[ptr] * {op.arg2};"
+                return f"tape[ptr{offset}] += tape[ptr] * {op.arg2};"
         
         elif op.op_type == OpType.NOP:
             return "/* nop */"

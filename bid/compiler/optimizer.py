@@ -414,23 +414,12 @@ class BFOptimizer:
         ops = self.collapse_runs(ops)
         log.debug(f"After collapse_runs: {len(ops)}")
         
+        # Loop pattern recognition - this should help!
         ops = self.recognize_loop_patterns(ops)
         log.debug(f"After recognize_loop_patterns: {len(ops)}")
         
-        # Propagate offsets to reduce pointer movements
-        ops = self.propagate_offsets(ops)
-        log.debug(f"After propagate_offsets: {len(ops)}")
-        
-        # Run dead code elimination after pattern recognition
-        ops = self.eliminate_dead_code(ops)
-        log.debug(f"After eliminate_dead_code: {len(ops)}")
-        
-        # Run collapse again after pattern recognition and DCE
-        ops = self.collapse_runs(ops)
-        log.debug(f"After final collapse_runs: {len(ops)}")
-        
-        # Run DCE one more time to catch anything new
-        ops = self.eliminate_dead_code(ops)
-        log.debug(f"After final eliminate_dead_code: {len(ops)}")
+        # DISABLED: Offset propagation hurts gcc performance  
+        # ops = self.propagate_offsets(ops)
+        # log.debug(f"After propagate_offsets: {len(ops)}")
         
         return ops
