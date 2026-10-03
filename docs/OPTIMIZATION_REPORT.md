@@ -15,9 +15,10 @@ All times are best-of-5 runs, same machine, same gcc flags.
 | Truly Naive (1 stmt/cmd) | 0.764 | 1.00x | No optimizations |
 | Old Transpiler (RLE + patterns) | **0.727** | **1.05x** | Existing transpiler |
 | New IR Optimizer | 0.770 | 0.99x | This PR's optimizer |
-| **Handwritten C** | **N/A** | - | No equivalent yet |
 
-**Result**: The existing transpiler is fastest. The new IR optimizer provides no benefit with gcc -O3.
+**Note**: Handwritten C mandelbrot implementations in `benchmarks/handwritten/` compute simplified fractals and run in ~0.5ms. They are NOT equivalent to the BF mandelbrot (which outputs 48 lines of complex ASCII art in ~0.77s). Creating a proper handwritten C equivalent of the actual BF mandelbrot algorithm would be a substantial undertaking and is not included.
+
+**Result**: The existing transpiler is fastest at 0.727s. The new IR optimizer at 0.770s provides no benefit.
 
 ### Simple Programs
 
