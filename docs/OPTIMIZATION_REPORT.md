@@ -37,7 +37,7 @@ Removes operations that have no effect:
 
 ## Benchmark Results (Measured on this System)
 
-All benchmarks run with `gcc -O3 -march=native`.
+All benchmarks run with `gcc -O3 -march=native` unless otherwise noted.
 
 ### Simple Programs
 
@@ -52,10 +52,24 @@ All benchmarks run with `gcc -O3 -march=native`.
 
 | Variant | Time (s) | vs Unopt | IR Ops | Reduction |
 |---------|----------|----------|--------|-----------|
-| Unoptimized C | 0.890 | 1.00x | 11,451 | - |
-| **Optimized C** | **0.827** | **1.08x** | 4,100 | **64.2%** |
+| Unoptimized C (-O3) | 0.863 | 1.00x | 11,451 | - |
+| **Optimized C (-O3)** | **0.877** | **0.98x** | 4,100 | **64.2%** |
+| Unoptimized C (-O0) | 3.431 | 1.00x | 11,451 | - |
+| **Optimized C (-O0)** | **3.103** | **1.11x** | 4,100 | **64.2%** |
 
-**Speedup: 1.08x (7.7% faster than naive transpiler)**
+**Key Finding**: IR-level optimizations provide **10.5% speedup without gcc optimization** (-O0), but with gcc -O3 the benefit disappears (and sometimes reverses). This shows that:
+1. The optimizations are real and measurable
+2. gcc -O3 is doing most of the heavy lifting
+3. Some IR optimizations may interfere with gcc's optimizer
+
+### The gcc -O3 Effect
+
+| Variant | -O0 Time | -O3 Time | gcc Speedup |
+|---------|----------|----------|-------------|
+| Unoptimized | 3.431s | 0.863s | **4.0x** |
+| Optimized | 3.103s | 0.877s | **3.5x** |
+
+**Insight**: gcc -O3 provides 4x speedup on naive code vs 3.5x on optimized code. This suggests our IR transformations (like offset addressing) may create patterns that are harder for gcc to optimize.
 
 Operation breakdown in optimized IR:
 - PTR: 1,674
